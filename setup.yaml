@@ -1,0 +1,43 @@
+# NICE: comments allowed now..
+mirrors:
+    - mingw:
+        primary:
+            - https://mirror.msys2.org/mingw/$repo/
+            - https://repo.msys2.org/mingw/$repo/
+        tier1:
+            - https://ftp2.osuosl.org/pub/msys2/mingw/$repo/
+            - https://mirror.yandex.ru/mirrors/msys2/mingw/$repo/
+            - https://mirror.accum.se/mirror/msys2.org/mingw/$repo/
+            - https://ftp.nluug.nl/pub/os/windows/msys2/builds/mingw/$repo/
+            - https://mirror.internet.asn.au/pub/msys2/mingw/$repo/
+            - https://mirror.selfnet.de/msys2/mingw/$repo/
+            - https://mirrors.dotsrc.org/msys2/mingw/$repo/
+            - https://mirrors.bfsu.edu.cn/msys2/mingw/$repo/
+            - https://mirrors.tuna.tsinghua.edu.cn/msys2/mingw/$repo/
+            - https://mirrors.ustc.edu.cn/msys2/mingw/$repo/
+            - https://mirror.nju.edu.cn/msys2/mingw/$repo/
+            - https://mirror.clarkson.edu/msys2/mingw/$repo/
+            - https://quantum-mirror.hu/mirrors/pub/msys2/mingw/$repo/
+            - https://mirror.archlinux.tw/MSYS2/mingw/$repo/
+            - https://distrohub.kyiv.ua/msys2/mingw/$repo/
+            - https://mirror.umd.edu/msys2/mingw/$repo/
+        tier2:
+            - https://ftp.cc.uoc.gr/mirrors/msys2/mingw/$repo/
+            - https://mirror.jmu.edu/pub/msys2/mingw/$repo/
+            - https://mirrors.piconets.webwerks.in/msys2-mirror/mingw/$repo/
+            - https://www2.futureware.at/~nickoe/msys2-mirror/mingw/$repo/
+            - https://mirrors.sjtug.sjtu.edu.cn/msys2/mingw/$repo/
+            - https://mirrors.bit.edu.cn/msys2/mingw/$repo/
+            - https://mirrors.aliyun.com/msys2/mingw/$repo/
+            - https://mirror.iscas.ac.cn/msys2/mingw/$repo/
+            - https://mirrors.cloud.tencent.com/msys2/mingw/$repo/
+            - https://download.nus.edu.sg/mirror/msys2/mingw/$repo/
+            - https://repo.extreme-ix.org/msys2/mingw/$repo/
+    - msys2:
+        primary:
+        tier1:
+        tier2:
+        
+targets: 
+    
+    

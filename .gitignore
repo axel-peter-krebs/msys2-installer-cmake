@@ -1,0 +1,14 @@
+# Do not publish locally created venvs
+.venv/
+# Do not submit local Python installation
+python/
+# Do not submit folders created by WinPy
+settings/
+Notbooks/
+# Do not submit downloads
+downloads/
+# Do not submit the installed MSYS2 runtime
+msys64/
+# Do not submit probes!
+.travis.yml
+
