@@ -1,8 +1,0 @@
-msys2.download_url|https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe
-msys2.install.dir|msys2
-msys2.user=vagrant
-python.download.url|https://github.com/winpython/winpython.git
-python.install.dir|C:\Python-3.13.9
-python.winutil.dir|scripts
-ruby.gems_home|"C:\Users\akrebs\eclipses\cpp-2024-12\.gems"
-ruby.opts|--with-openssl-dir=/opt/homebrew/opt/openssl@1.1,--other
