@@ -2,5 +2,4 @@ msys2.download.url=https://repo.msys2.org/distrib/x86_64/msys2-x86_64-20250830.e
 msys2.packages.url=https://github.com/msys2/MSYS2-packages.git
 msys2.mingw64.master.url=https://github.com/msys2/MINGW-packages.git
 msys2.mingw64.hdl.url=https://github.com/hdl/MINGW-packages.git
-msys2.install.dir=C:\msys64
-msys2.user.name=axel
+msys2.user.home=vagrant

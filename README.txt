@@ -15,6 +15,8 @@ Installation steps:
 	* Download MSYS2-base installer and install into folder 'msys2' (this can be changed via 'msys2.properties' file).
 	* Configure MSYS2 installation: A User for building packages should be established, defaulting to user 'vagrant'
 	  (therefore, MSYS configuration files reside in folder 'vagrant', but must be renamed before being usable).
+	  Note: Some commands are not available in the base MSYS2 installation, e.g. 'makepkg'; therfore, these _must_ 
+	  be run on a command line tool like Bash, which is only possible "within" the MSYS2 installation.
 	* In order to connect and download GitHub sources, he/she should be able to connect via the GitHub SSH device..
 	  -> Use MSYS2 GNU tools to generate keys
 	  -> Install GitBash for Windows 
@@ -33,3 +35,4 @@ Samples:
 
 * Build an application with cegui library and run tests.
 * Build a minmal Ruby gem and run specs.
+

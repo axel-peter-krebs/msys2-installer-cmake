@@ -1,65 +1,94 @@
-﻿# Set environment variables for the local MSYS2 (msys64) installation & convenience funct
-# Essentially a PS client to MSYS2\usr\bin programs
+﻿# msys2-env.psm1 [Essentially a PS client to MSYS2\usr\bin programs]
+# Goals: 
+# - Set environment variables for the local MSYS2 (msys64) installation: Env:MSYS2_HOME and Env:HOME (for user 'vagrant', 
+#   if parameter 'MSYS64_User_Home' is not set to another location)
+# - Return a hashtable of environment 'facts', that is, has the MSYS2 installation been found, which packages are installed.
 param (
     [parameter(Position=0,Mandatory=$True)][String] $MSYS64_Path,
-    [parameter(Position=1,Mandatory=$False)][String] $MSYS64_User_Home
+    [parameter(Position=1,Mandatory=$False)][String] $MSYS64_User_Home # if not set, use default user 'vagrant'
 )
 
-$debug_messages = @();
+Write-Host "MSYS64_Path: $MSYS64_Path"
+Write-Host "MSYS64_User_Home: $MSYS64_User_Home"
+
+# When executing this script, some facts about the environment are gathered and kept in this hashtable for investication by the caller.
+# TODO: covert the hashtable to a 'pscustomobject'
+$load_facts = [pscustomobject]@{
+    user_home_path = $null
+    msys2_install_dir = $null
+    msys2_packages = @{}
+    debug_messages = @()
+};
 
 # Provide loading errors for calling script - on demand
-Function Get_Module_Load_Messages() {
-    return $script:debug_messages;
+Function Get_Module_Load_Facts() {
+    return $script:load_facts;
 }
 
-# Test if $MSYS64_Path and $MSYS64_User exist..
+Export-ModuleMember 'Get_Module_Load_Facts'; # Print information about the MSYS2 installation (for calling script)
+
+# Test if $MSYS64_Path and $MSYS64_User exist.. 
 $msys64_path_exists = Test-Path $($MSYS64_Path);
-$can_install_packages = $False;
+$absolute_user_home_path_exists = Test-Path $($MSYS64_User_Home);
+
+# Create the default user home - only if MSYS2 installation is proper.
+Function Set_Create_Default_User_Home() {
+
+    # If the directory for vagrant does not exist, installation was either corrupted or the script run for the first time - create new!
+    if($(Test-Path "$MSYS64_Path\home\vagrant") -ne $True) {
+        New-Item -Path "$MSYS64_Path\home" -Name "vagrant" -ItemType "Directory"
+    }
+    $Env:HOME = Convert-Path "$MSYS64_Path\home\vagrant";
+    $script:load_facts.'user_home_path' = $Env:HOME
+}
 
 if($msys64_path_exists -ne $True) {
-    $debug_messages += "Could not find path to MSYS2 installation, looking @ '$MSYS64_Path'! \
-        Either change the MSYS2 installation directory in 'msys2.properties' file, or install in 'msys64' subdirectory.";
+    $script:load_facts.'debug_messages' += "Could not find path to MSYS2 installation, looking @ '$MSYS64_Path'! \
+        Either change the 'msys2.install.dir' property in 'msys2.properties' to point to a valid MSYS2 installation, \
+        or install MSYS2 in the 'msys64' subdirectory (default) manually.";
 }
 else {
-    $Env:MSYS2_HOME = Convert-Path "$($MSYS64_Path)"
-    $can_install_packages = $True
-}
+    $Env:MSYS2_HOME = Convert-Path "$($MSYS64_Path)" # we'll test this later..
+    $script:load_facts.'msys2_install_dir' = $Env:MSYS2_HOME;
 
-# "$HOME" would not work.. Note: The Env:HOME variable is only valid during the shell session!
-if($MSYS64_User_Home -ne '') {
-    $user_home_exists = Test-Path "$($MSYS64_User_Home)"; # may be outside of MSYS2 installation folder
-    if($user_home_exists){
+    # "$HOME" would not work on Windows.. Note: The Env:HOME variable is only valid during the shell session!
+    if($absolute_user_home_path_exists) {
         $Env:HOME = Convert-Path "$MSYS64_User_Home";
+        $script:load_facts.'user_home_path' = $Env:HOME;
     }
+
+    # An out-of-msys2 user home path was not provided - test if user home path exists in MSYS2 installation or set default user 'vagrant'
     else {
-        if($msys64_path_exists) {
-            $msys64_user_home_exists = Test-Path "$($MSYS64_Path)\home\$($MSYS64_User_Home)"; # user name relative to MSYS2 installation
-            if($msys64_user_home_exists) {
-                $Env:HOME = Convert-Path "$($MSYS64_Path)\home\$($MSYS64_User_Home)";
-            }
-            else {
-                $debug_messages += "Env:HOME could not be set, bcs. a path '$MSYS64_Path\home\$MSYS64_User_HOME' was not detected. Using 'vagrant'.";
-                if($(Test-Path "$MSYS64_Path\home\vagrant") -ne $True) {
-                    New-Item -Path "$MSYS64_Path\home" -Name "vagrant" -ItemType "Directory"
-                }
-                $Env:HOME = Convert-Path "$MSYS64_Path\home\vagrant";
-            }
+
+         # 1) is the default user passed as parameter? special case..
+        if($MSYS64_User_Home -eq 'vagrant') {
+            Set_Create_Default_User_Home;
         }
         else {
-            $debug_messages += "Neither was a MSYS2 installation detected, nor a user HOME path for '$MSYS64_User_Home'! You can fix this by setting the respective value in 'msys2.properties' file.";
+            
+            # 2) A user name was provided, not 'vagrant' - check if it exists in HOME path of MSYS2 installation..
+            $msys64_user_home_exists = Test-Path "$($MSYS64_Path)\home\$($MSYS64_User_Home)"; # user name relative to MSYS2 installation, th.i. MSYS2/home/{user}
+            if($msys64_user_home_exists) {
+                $Env:HOME = Convert-Path "$($MSYS64_Path)\home\$($MSYS64_User_Home)";
+                $script:load_facts.'user_home_path' = $Env:HOME;
+            }
+            else {
+                Set_Create_Default_User_Home;
+            }
         }
     }
 }
 
 # Now that we have MSYS2 on PATH, we can check some progs and config, like existing files etc. 
-# [using some NOCE features of PS, nested Functiions.
-if($can_install_packages) {
+if($script:load_facts.'msys2_install_dir' -ne $null) {
+
+    #Write-Host "!!!!!!!!!!" $script:load_facts.'msys_install_dir'
 
     $Env:Path = "$Env:MSYS2_HOME\usr\bin\;" + $Env:Path;
 
-    # Set-Location -Path $Env:HOME - not yet!
-
     # $Env:MSYSTEM = "ucrt64" ??? 
+
+    $can_install_packages = $False; # TODO: test availability of binaries and set accordingly
 
     # Now that we have the MSYS2 executables in PATH, the paths to Lua, Python, Ruby etc. are standardized. 
     # Memento: The EXE used here is that of MSYS2, but not MINGW64 etc.
@@ -70,26 +99,8 @@ if($can_install_packages) {
     $cyg_home = cygpath -w /home
     #Write-Host "cygpath_home: $cyg_home"
 
-    Function msys_User_Home() {
-        $userHomeSet = Test-Path $Env:HOME;
-        if($userHomeSet) {
-            #Write-Host "Found user's HOME in path: $Env:HOME"
-            return $Env:HOME;
-        }
-        else {
-            return "NOT_FOUND";
-        }
-    };
-
-    Function msys_Env() {
-        & printenv
-    };
-
     $msys2Packages = @() # Read currently installed packages with pacman -Q
     $pacmanQuery = pacman -Q
-        Function get_packages() {
-        return $msys2Packages;
-    }
 
     # Using the Windows port of pacman here
     Function query_packages() {
@@ -101,9 +112,9 @@ if($can_install_packages) {
             $currentVersion = '';
             foreach($elem in $res) { # assume order: pkg_name, pkg_version
                 if ($dual_toggle -eq 1) {
-                   #Write-Host "cnt=1, elem = $elem"
-                   $currentPackageName = $elem;
-                   $dual_toggle = 2; # set-1-up
+                    #Write-Host "cnt=1, elem = $elem"
+                    $currentPackageName = $elem;
+                    $dual_toggle = 2; # set-1-up
                 }
                 elseif($dual_toggle -eq 2) {
                     #Write-Host "cnt=2, elem = $elem"
@@ -117,6 +128,7 @@ if($can_install_packages) {
         } 
     }
 
+    # Immediately invoke this function.. There's no function.apply method like Scala etc.
     & query_packages # Fills the package-version array ('msys2Packages'), s.a.
 
     Function Msys_Packages() {
@@ -126,10 +138,9 @@ if($can_install_packages) {
         }
     }
 
-    # Memento: 
-    Function install_package($package) {
-        
-    }
+    Function msys_Env() {
+        & printenv
+    };
 
     # bash into MSYS2
     Function Msys_Bash() {
@@ -143,44 +154,42 @@ if($can_install_packages) {
         & bash -c $cmd
     }
 
-    # GitBash is not required to build the toolchains, however, things get much easier
-    Function install_Git_Bash() {
-        
-    }
-
-    # In order to build the Toolchains for [system|architecture], we need some additional tools in MSYS2
-    # git wget mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
-    Function setup_Toolchain_Build_Tools() {
-        
-    }
-
-    Function install_XMake() {
-        cd $Env:HOME # defined above; XMake requires a user install
-        # wget https://xmake.io/shget.text -O - | bash
-    }
-
-    Function Msys_Help() {
-        Write-Host "Available commands are: "
+    Function Msys_Info() {
+        Write-Host "Local MSYS2 installation in '$Env:MSYS2_HOME'. [$u_name_rv]";
+        Write-Host "Local MSYS2 user Env:HOME variable is set to '$Env:HOME'";
+        Write-Host "To get more information about this MSYS2 installation, choose one of the following commands:"
         Write-Host "`tmsys_Env: Invoke 'printenv' in MSYS2."
-        Write-Host "`tmsys_Info: Show MSYS2 version and additional commands."
-        Write-Host "`tmsys_Bash: Enter commands in MSYS2 bash."
+        Write-Host "`tmsys_Bash: Bash into the user environment ($Env:HOME)"
+        Write-Host "`tmsys_Packages: List installed packages."
+        if($can_install_packages){
+            
+        }
     }
-    
-    Export-ModuleMember 'msys_Help' # Print available commands
-    Export-ModuleMember 'msys_Packages'
-    Export-ModuleMember 'msys_Env'  # Invoke MSYS2 'printenv'
-    Export-ModuleMember 'msys_Help' # Print information about the MSYS2 installation
-    Export-ModuleMember 'msys_User_Home' # The caller may want to call Set-Location
+
+    Export-ModuleMember 'msys_Info';
+    Export-ModuleMember 'msys_Env';  # Invoke MSYS2 'printenv'
+    Export-ModuleMember 'msys_Packages';
     Export-ModuleMember 'msys_Bash' # Enter bash command
 }
+else {
+    Function msys_Install() {
+        param (
+            [parameter(Position=0,Mandatory=$True)][String] $download_url,
+            [parameter(Position=1,Mandatory=$False)][String] $download_folder
+        )
+        Write-Host "Installing MSYS2 to $MSYS64_Path .."
+        #& 'C:\Program Files\IIS\Microsoft Web Deploy\msdeploy.exe'
 
-Function Msys_Info() {
-    Write-Host "Local MSYS2 installation in '$Env:MSYS2_HOME'. [$u_name_rv]"
-    Write-Host "Local MSYS2 user Env:HOME variable is set to '$Env:HOME'"
-    if($can_install_packages){
-        Write-Host "For a list of available commands, type 'Msys_Help'"
     }
+
+    Function msys_Help() {
+        Write-Host "Available options are: "
+        Write-Host "`tmsys_Install download_url [download_folder]: Installs the downloaded MSYS2 to $MSYS64_Path (as specified in 'msys2.install.dir')"
+        Write-Host "`tHint: If you want to install to another location, you must specify this property in 'msys2.properties'."
+    }
+
+    Export-ModuleMember 'msys_Help';
+    Export-ModuleMember 'msys_Install';
 }
 
-Export-ModuleMember 'Get_Module_Load_Messages'
-Export-ModuleMember 'Msys_Info'
+
