@@ -142,14 +142,13 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         
     }
 
+    # Now, Perl modules are somewhat different in MSYS2.. We have to look at https://packages.msys2.org/queue
+    # TODO: diff with existing modeules
     $updateablePerlModules = @{
-        "perl-devel" = "1.36-1"
         "perl-YAML-Syck" = "1.36-1"
     };
 
-    # now, we've got the already installed MSYS2 packages, diff with requirements
-
-    Function Msys_Install_Or_Update_Perl_Modules() {
+    Function Msys_Install_Required_Perl_Modules() {
         $updateablePerlModules.Keys | ForEach-Object {
             Write-Host "Required: " $_ ", version: " $updateablePerlModules[$_];
             $pkg_query = $null;
@@ -173,7 +172,7 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
 
     Export-ModuleMember 'msys_Info'; # print information about this MSYS2 installation
     Export-ModuleMember 'Msys_List_Packages';  # List installed packages
-    Export-ModuleMember "Msys_Install_Or_Update_Perl_Modules"
+    Export-ModuleMember "Msys_Install_Required_Perl_Modules"
 }
 
 else {

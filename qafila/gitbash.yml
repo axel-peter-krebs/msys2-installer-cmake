@@ -1,0 +1,16 @@
+---
+  version: 1.0
+
+  files:
+    - /etc/pacman.conf:
+        before_line: "[mingw32]"
+        new_lines:
+          - "[git-for-windows-x86_64]"
+          - "Server = https://raw.githubusercontent.com/git-for-windows/pacman-repo/refs/heads/x86_64"
+    - 'hello.txt':
+        new_lines: 
+          - "Hello"
+  packages:
+    - ''
+  scripts:
+    - "OK"
