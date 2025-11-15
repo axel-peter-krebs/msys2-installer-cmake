@@ -79,8 +79,36 @@ Import-Csv $settingsFile -Delimiter "=" -Header Key,Value | ForEach-Object {
     }
 }
 
-if($show_debug_information) {
+if ($show_debug_information) {
     print_settings
+}
+
+# When MSYS2 installation is found valid (synched and clean), the user may choose 
+# to enter the 'packing' environment, s. while loop below
+Function Start_Packing() {
+
+    Write-Host "Inspecting package-build environment (user) .."
+
+    # next step is to enable build environment for MSYS2 packages
+    $msys2_packages_master_src_dir = $script:settings.'sources.dir' + "\MSYS2-packages-master";
+    $mingw64_packages_master_src_dir = $script:settings.'sources.dir' + "\MINGW-packages-master";
+    Import-Module "$Current_Script_loc\msys2-packer.psm1" -ArgumentList @(
+        $script:settings.'msys2.packages.master.url',
+        $msys2_packages_master_src_dir,
+        $script:settings.'msys2.mingw64.packages.master.url',
+        $mingw64_packages_master_src_dir
+    )
+
+    $msys_user_home_path = Convert-Path $($Env:HOME)
+    if($msys_user_home_path -ne $null) {
+        Write-Host "Env:HOME was properly initialized.. Pls. choose an option which environment to start.";
+        Set-Location $msys_user_home_path
+    }
+    else {
+        Write-Host "Env:HOME seems to be missing.. ";
+        Set-Location $Current_Script_loc
+    }
+
 }
 
 # Set the path to the MSYS2 executables (GNU programs)
@@ -90,36 +118,83 @@ Import-Module "$Current_Script_loc\msys2-env.psm1" -ArgumentList @(
     $script:settings.'msys2.download.url'
 )
 
+# Now, Perl modules are somewhat different in MSYS2.. We have to look at https://packages.msys2.org/queue
+# TODO: diff with existing modules
+$requiredPerlModules = @(
+    "perl-YAML-Syck",
+    "cpanminus"
+);
+
 $module_load_facts = Get_Module_Load_Facts;
-if($module_load_facts.'msys2_install_dir' -ne $null) {
-    Write-Host "Local MSYS2 installation was properly initialized.. Type 'msys_info' to get information and commands."
-    Write-Host "Inspecting package-build environment (user) .."
+if($module_load_facts.'msys2_clean' -eq $True) {
+    Write-Host "Local MSYS2 installation was properly initialized.. Type 'msys_info' to get information about the installation.";
 
-    # next step is to enable build environment for MSYS2 packages
-    $msys2_packages_master_src_dir = $script:settings.'sources.dir' + "\MSYS2-packages-master";
-    $mingw64_packages_master_src_dir = $script:settings.'sources.dir' + "\MINGW-packages-master";
-    Import-Module "$Current_Script_loc\msys2-packer.psm1" -ArgumentList @(
-        $script:settings.'msys2.user.home',
-        $script:settings.'msys2.packages.master.url',
-        $msys2_packages_master_src_dir,
-        $script:settings.'msys2.mingw64.packages.master.url',
-        $mingw64_packages_master_src_dir
-    )
+    # Check whether the installation contains the required Perl modules
+    $installedPackages = $module_load_facts.'msys2_packages';
+    #$installablePackages = $requiredPerlModules | Where {$installedPackages -NotContains $_}
+    $installablePackages = @();
+    foreach ($pkg in $requiredPerlModules) {
+        if ($pkg -in $installedPackages.Keys) {
+            Write-Host "Package already installed: $pkg";
+        }
+        else {
+            $installablePackages += $pkg;
+        }
+    }
+    if ( $installablePackages.count -gt 0 ) {
+        Write-Host "Some required packages are missing!";
+        foreach ($pkg in $installablePackages) {
+            Write-Host "Package $pkg is missing."
+        }
+        #Export-ModuleMember "Msys_Install_Required_Packages";
+        Function Msys_Install_Required_Packages() {
+            Write-Host ("Installing required packages..");
+            foreach ($_pkg in $installablePackages) {
+                Msys_Install_Package($_pkg);
+            }
+        }
+    }
 
-    $msys_user_home_path = Convert-Path $($Env:HOME)
-    if($msys_user_home_path -ne $null) {
-        Write-Host "Env:HOME was properly initialized.. leading you to build environment now."
-        Set-Location $msys_user_home_path
+    # Set the user Env:HOME here for modules 
+    $user_home_path = $script:settings.'msys2.user.home';
+    if ($user_home_path -ne 'qafila') { # user settings 
+        Write-Host "User HOME set to absolute path $user_home_path; will register as Env:HOME variable..";
+        $Env:HOME = Convert-Path $user_home_path;
     }
-    else {
-        Set-Location $Current_Script_loc
+    else { # default 
+        Write-Host "User HOME was not set, will register default (qafila) as Env:HOME variable..";
+        $Env:HOME =  Convert-Path "$Current_Script_loc\quafila";
     }
+    
+    $exitWhile = $False;
+    do {
+        $activity = Read-Host -Prompt "Please choose an activity: \
+            Type 'A' for a MSYS2-packing (package building) environment. \
+            Type 'I' to install missing modules. \
+            Type 'X' to return to this shell.`n";
+        switch ($activity) {
+            A {
+                Start_Packing
+                $exitWhile = $True;
+            }
+            I {
+                Msys_Install_Required_Packages
+            }
+            X {
+                Set-Location $Current_Script_loc;
+                $exitWhile = $True;
+            }
+            default { 
+                "Your input has not been recognized as a valid option!" 
+            }
+        }
+    } while ( ! $exitWhile);
 }
 else {
-    Write-Host "There have been some problems loading the local MSYS2 installation. Messages: "
+    Write-Host "There have been problems loading the local MSYS2 installation.. Messages: "
     foreach($msg in $module_load_facts.debug_messages) {
         Write-Host "`t$msg";
     }
-    Write-Host "Type 'msys_help' to get a list of repair options."
-    Set-Location $Current_Script_loc
+    Write-Host "Type 'msys_help' to get a list of options."
+    Set-Location $Current_Script_loc; 
 }
