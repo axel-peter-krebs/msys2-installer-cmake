@@ -4,7 +4,8 @@
   steps:
 
     - step: 
-        name: 'Preconditions'
+        name: '#1'
+        description: ""
         files:
           - /etc/pacman.conf:
               before_line: "[mingw32]"
@@ -16,7 +17,6 @@
                 - "Server = https://raw.githubusercontent.com/git-for-windows/pacman-repo/refs/heads/i686"
                 - ""
         packages:
-          - "git"
         commands:
           - "curl -L https://raw.githubusercontent.com/git-for-windows/build-extra/HEAD/git-for-windows-keyring/git-for-windows.gpg | sh -c 'pacman-key --add -'"
           - "sh -c 'pacman-key --lsign-key E8325679DFFF09668AD8D7B67115A57376871B1C'"
@@ -24,18 +24,26 @@
           - "pacman -Syyuu"
 
     - step:
-        name: 'In-the-middle'
+        name: '#2'
+        description: ""
         files:
         packages:
         commands:
           - "pacman -Suu"
 
     - step: 
-        name: 'Target'
+        name: '#3'
+        description: ""
         files:
         packages:
           - "mingw-w64-x86_64-git"
           - "mingw-w64-x86_64-git-doc-html"
           - "mingw-w64-x86_64-git-doc-man"
           - "mingw-w64-x86_64-git-extra"
+          - "mingw-w64-x86_64-git-credential-manager"
         commands:
+
+    - step:
+        name: '#4'
+        description: ""
+        files:

@@ -64,11 +64,12 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
     $which_perl = which perl;
     $which_wget = which wget
     $msys2Packages = @() # Read currently installed packages with pacman -Q
-    $pacmanQuery = "pacman -Q"
-    $pacmanUpdate = "pacman -Suy"
+    $pacmanQuery = "pacman -Q";
+    $pacmanUpdatesAvailable = "pacman -Syu --noconfirm"; # check if core system updates available
+    $pacmanPackageUpdate = "pacman -Suy --noconfirm";
+    $pacmanSystemUpdate = "pacman -Syyuu --noconfirm"
     $pacmanInstall = "pacman -S --needed --noconfirm"
-    $pacmanUpdatesAvailable = "pacman -Syu"; # check if core system updates available
-
+    
     # Using the Windows port of pacman here
     Function __query_packages() {
         #Write-Host "Querying local packages.."
@@ -118,9 +119,8 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         else {
             Invoke-Command { 
                 $updateRes = iex $pacmanUpdate;  # this returns a string, separated by empty space
-                Write_host "pacman -Syu returned: $updateRes";
                 $script:load_facts.'msys2_clean' = $True;
-                Write-Host "Update successful, result: $updateRes"
+                Write-Host "Update successful, pacman -Syu returned: $updateRes"
             } 
         }
     }
@@ -170,11 +170,16 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
 
     Function Msys_Info() {
         Write-Host "Local MSYS2 installation in '$Env:MSYS2_HOME' [$u_name_rv]";
-        Write-Host "Invoke the cmdlet 'Get_Module_Load_Facts' to see all configuration settings."
-        Write-Host "Invoke 'Msys_List_Packages' to list all packages found installed."
-        Write-Host "Invoke 'Msys_Sync' to update packages to their latest version."
-        Write-Host "Invoke 'Msys_Install_Package [package_name]' to install packages."
+        Write-Host "Invoke the cmdlet 'get_module_load_facts' to see all configuration settings.";
         Write-Host "[Also, MSYS2 installed tools are available, e.g. 'printenv', pacman -Q, bash etc.]"
+    }
+
+    Function Msys_Help() {
+        Write-Host "Available options are: ";
+        Write-Host "`tType 'msys_info' to print some information about this MSYS2 installation.";
+        Write-Host "`tType 'msys_list_packages' to list all packages found installed.";
+        Write-Host "`tType 'Msys_Install_Package [package_name]' to install packages."
+        Write-Host "`tType 'msys_sync' to synchronize the MSYS2 database; Updates all packages to their latest version.";
     }
 
     Export-ModuleMember 'msys_Info'; # print information about this MSYS2 installation
@@ -208,14 +213,14 @@ else {
         }
     }
 
-    Export-ModuleMember 'msys_install';
-}
+    Function Msys_Help() {
+        Write-Host "Available options are: "
+        Write-Host "`tmsys_install download_url [download_folder]: Installs the downloaded MSYS2 to $MSYS2_Path (as specified in 'msys2.install.dir')"
+        Write-Host "`tHint: If you want to install to another location, you must specify this property in 'msys2.properties'."
+        Write-Host "`tType 'msys_sync' to synchronize the MSYS2 database.";
+    }
 
-Function Msys_Help() {
-    Write-Host "Available options are: "
-    Write-Host "`tmsys_install download_url [download_folder]: Installs the downloaded MSYS2 to $MSYS2_Path (as specified in 'msys2.install.dir')"
-    Write-Host "`tHint: If you want to install to another location, you must specify this property in 'msys2.properties'."
-    Write-Host "`tType 'msys_sync' to synchronize the MSYS2 database.";
+    Export-ModuleMember 'Msys2_Install';
 }
 
 Export-ModuleMember 'Msys_Help';

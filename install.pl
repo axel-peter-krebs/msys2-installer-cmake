@@ -20,8 +20,6 @@ struct ( TODO =>
 
 my @todos = ();
 
-my $pacmanInstall = "pacman -S #pkg --noconfirm";
-
 my $file_name = $ARGV[0];
 
 if($file_name eq "") {
@@ -46,7 +44,7 @@ else {
                     my $step_detail_hash = %$step_hash{"$step_key"};
                     foreach my $step_detail (keys %{ $step_detail_hash }) {
                         if ( $step_detail eq "name") {
-                            my $step_name = %$step_detail_hash{"name"};
+                            my $step_name = %$step_detail_hash{'name'};
                             print "Step name: $step_detail\n";
                         }
                         elsif ( $step_detail eq "files") {
@@ -115,7 +113,7 @@ sub execute_all() {
     foreach my $todo (@todos) {
         my $files_list = $todo->files;
         foreach my $file_ops_hash ( @{ $files_list }) {
-            print "Changing file: "; #TODO
+            print "Calling file op: "; #TODO
             &file_op($file_ops_hash);
         }
         my $commands_list = $todo->commands;
@@ -138,7 +136,7 @@ sub execute_all() {
 sub file_op() {
     my $file_ops_hash = $_[0]; 
     for my $file_name (keys %$file_ops_hash) { # array of a hash with a single entry (file name)..
-        #print "File: $file_name\n"; 
+        print "Changing file: $file_name\n"; 
         my $before_line = "";
         my $after_line = "";
         my @new_lines = (); # order is important!
@@ -229,7 +227,8 @@ sub append_lines() {
 sub package_op() {
     #print "Packages operations!\n";
     my $package = $_[0]; 
-    $pacmanInstall =~ s/#pkg/$package/g;
+    my $pacmanInstall = "pacman -S package --noconfirm";
+    print "Executing package operation: $pacmanInstall";
     my $output = `$pacmanInstall 2>&1`;
     return $output;
 }
@@ -238,6 +237,7 @@ sub command_op() {
     #print "Command operations!\n";
     my $command_string = $_[0]; 
     #exec $command_string;
+    print "Executing comand: $command_string";
     my $output = `$command_string 2>&1`;
     return $output;
 }

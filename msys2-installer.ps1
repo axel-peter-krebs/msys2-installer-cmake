@@ -13,7 +13,7 @@ Function _log_if_debug([string] $debug_message) {
     }
 }
 
-$Current_Script_loc = $PSScriptRoot
+$Current_Script_loc = $PSScriptRoot;
 
 # Assume sensible defaults for MSYS2 location, MSYS2 user, download location, source location a.s.o.
 $settings = @{
@@ -72,15 +72,44 @@ Import-Csv $settingsFile -Delimiter "=" -Header Key,Value | ForEach-Object {
 
     # Show overrides to user for clarification if settings in msys2.properties
     if($overridden -eq $True){
-
         _log_if_debug "Overriding default settings: Key '$key' defined as '$($script:settings[$key])' will be overridden with '$val'!";
-
         $settings[$key] = $val;
     }
 }
 
 if ($show_debug_information) {
     print_settings
+}
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+$recipes_folder = Convert-Path "$Current_Script_loc\recipes";
+$perl_install_script_loc = "$Current_Script_loc\install.pl"
+
+Function Run_Install_Script() {
+    $file_exists = $False;
+    while ( $file_exists -ne $True ) {
+        $recipe = Read-Host -Prompt "Pls. tell me which recipe to run (YML file) or type 'x' to exit:";
+        if($recipe -eq 'x') {
+            $file_exists = $True; # hack
+        }
+        else {
+            Write-Host "YAML file to execute: $recipes_folder/$recipe";
+
+            $file_exists = Test-Path "$recipes_folder\$recipe";
+            if($file_exists) {
+                $yaml_file_cygpath = cygpath -u "$recipes_folder\$recipe";
+                Write-Host "YAML Unix path: $yaml_file_cygpath";
+                Invoke-Command { 
+                    $queryRes = iex "perl -s $perl_install_script_loc $yaml_file_cygpath"; # arguments?
+                    Write-Host "Receipe successfully executed!";
+                }
+            }
+            else {
+                Write-Host "A file '$recipe' wasn't found; pls. specifiy a valid path!";
+            }
+        }
+    }
 }
 
 # When MSYS2 installation is found valid (synched and clean), the user may choose 
@@ -101,7 +130,7 @@ Function Start_Packing() {
 
     $msys_user_home_path = Convert-Path $($Env:HOME)
     if($msys_user_home_path -ne $null) {
-        Write-Host "Env:HOME was properly initialized.. Pls. choose an option which environment to start.";
+        Write-Host "Env:HOME was properly initialized.";
         Set-Location $msys_user_home_path
     }
     else {
@@ -119,15 +148,14 @@ Import-Module "$Current_Script_loc\msys2-env.psm1" -ArgumentList @(
 )
 
 # Now, Perl modules are somewhat different in MSYS2.. We have to look at https://packages.msys2.org/queue
-# TODO: diff with existing modules
+# The point is, we cannot execute the YAML installer Perl file without having loaded the required Perl modules!
 $requiredPerlModules = @(
-    "perl-YAML-Syck",
-    "cpanminus"
+    "perl-YAML-Syck"
 );
 
 $module_load_facts = Get_Module_Load_Facts;
 if($module_load_facts.'msys2_clean' -eq $True) {
-    Write-Host "Local MSYS2 installation was properly initialized.. Type 'msys_info' to get information about the installation.";
+    Write-Host "Local MSYS2 installation was properly initialized..";
 
     # Check whether the installation contains the required Perl modules
     $installedPackages = $module_load_facts.'msys2_packages';
@@ -166,20 +194,31 @@ if($module_load_facts.'msys2_clean' -eq $True) {
         $Env:HOME =  Convert-Path "$Current_Script_loc\quafila";
     }
     
+    # TODO: Build the menu dynamically, resp. which functions are available
     $exitWhile = $False;
     do {
         $activity = Read-Host -Prompt "Please choose an activity: \
+            Type 'H' to get information about this MSYS2 installation. \
+            Type 'I' to run a YAML installer recipe. \
+            Type 'P' to install missing Perl modules. \
             Type 'A' for a MSYS2-packing (package building) environment. \
-            Type 'I' to install missing modules. \
-            Type 'X' to return to this shell.`n";
+            Type 'X' to exit this menu.";
         switch ($activity) {
+            H {
+                Msys_Help
+                $exitWhile = $True;
+            }
+            P {
+                Msys_Install_Required_Packages
+            }
+            I {
+                Run_Install_Script
+            }
             A {
                 Start_Packing
                 $exitWhile = $True;
             }
-            I {
-                Msys_Install_Required_Packages
-            }
+
             X {
                 Set-Location $Current_Script_loc;
                 $exitWhile = $True;
