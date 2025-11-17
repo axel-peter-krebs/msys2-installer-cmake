@@ -5,7 +5,7 @@
 
     - step: 
         name: '#1'
-        description: ""
+        description: "Add resource locations for 'git-for-windows-x86_64' and install PGP keys. Upgrade system."
         files:
           - /etc/pacman.conf:
               before_line: "[mingw32]"
@@ -17,19 +17,21 @@
                 - "Server = https://raw.githubusercontent.com/git-for-windows/pacman-repo/refs/heads/i686"
                 - ""
         packages:
+          
         commands:
           - "curl -L https://raw.githubusercontent.com/git-for-windows/build-extra/HEAD/git-for-windows-keyring/git-for-windows.gpg | sh -c 'pacman-key --add -'"
           - "sh -c 'pacman-key --lsign-key E8325679DFFF09668AD8D7B67115A57376871B1C'"
           - "sh -c 'pacman-key --lsign-key 3B6D86A1BA7701CD0F23AED888138B9E1A9F3986'"
-          - "pacman -Syyuu"
+          - "pacman -Syyuu --noconfirm"
 
     - step:
         name: '#2'
-        description: ""
+        description: "Update MSYS2 packages databae (sync)"
         files:
         packages:
+          - "git"
         commands:
-          - "pacman -Suu"
+          - "pacman -Suu --noconfirm"
 
     - step: 
         name: '#3'
@@ -45,5 +47,5 @@
 
     - step:
         name: '#4'
-        description: ""
+        description: "Start ssh-agent automatically when MSYS2 bash starts."
         files:

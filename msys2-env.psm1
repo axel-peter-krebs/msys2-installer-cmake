@@ -215,9 +215,9 @@ else {
 
     Function Msys_Help() {
         Write-Host "Available options are: "
-        Write-Host "`tmsys_install download_url [download_folder]: Installs the downloaded MSYS2 to $MSYS2_Path (as specified in 'msys2.install.dir')"
+        Write-Host "`tmsys_install [download_url] [download_folder]: Installs the downloaded MSYS2 to $MSYS2_Path (as specified in 'msys2.install.dir')"
         Write-Host "`tHint: If you want to install to another location, you must specify this property in 'msys2.properties'."
-        Write-Host "`tType 'msys_sync' to synchronize the MSYS2 database.";
+        
     }
 
     Export-ModuleMember 'Msys2_Install';

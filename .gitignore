@@ -3,7 +3,7 @@ downloads/
 # Do not submit GitHub checkouts
 github/
 # Do not submit the installed MSYS2 runtime
-msys64/
+msys*/
 # Do not submit unpacked/checked-out sources
 sources/
 # Do not publish the IDE

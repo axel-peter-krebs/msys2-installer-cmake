@@ -12,6 +12,8 @@ $YAML::Syck::ImplicitTyping = 1;
 
 struct ( TODO => 
     {
+        'name' => '$',
+        'description' => '$',
         'files' => '@',
         'packages' => '@',
         'commands' => '@'
@@ -45,17 +47,20 @@ else {
                     foreach my $step_detail (keys %{ $step_detail_hash }) {
                         if ( $step_detail eq "name") {
                             my $step_name = %$step_detail_hash{'name'};
-                            print "Step name: $step_detail\n";
+                            $todo->name($step_name);
+                        }
+                        elsif ( $step_detail eq "description") {
+                            my $step_desc = %$step_detail_hash{'description'};
+                            $todo->description($step_desc);
                         }
                         elsif ( $step_detail eq "files") {
                             my $file_ops = %$step_detail_hash{"files"};
-                            foreach my $file_name_ops_hash ( @{ $file_ops } ) {
+                            #foreach my $file_name_ops_hash ( @{ $file_ops } ) {
                                 #push @{ $TODOS{'files'} }, $file_name_ops_hash;
                                 #foreach my $file_name (keys %{ $file_name_ops_hash } ) {
                                 #    print "Found file: $file_name\n";
                                 #}
-                                
-                            }
+                            #} TODO aufschlüsseln
                             $todo->files($file_ops);
                         }
                         elsif (  $step_detail eq "packages" ) {
@@ -89,20 +94,25 @@ else {
 # 'Dry-run' ..
 sub print_todos() {
     my $nr_todos = scalar @todos;
-    print "No. of TODOs: $nr_todos\n";
+    print "### TODOs [$nr_todos] ###\n";
     foreach my $todo ( @todos ) {
-        print "STEP\n";
-        my $files_list = $todo->files;
+        my $todo_name = $todo->name();
+        my $todo_desc = $todo->description();
+        print "# STEP: $todo_name\n";
+        print "\tDescription: $todo_desc\n";
+        my $files_list = $todo->files();
         foreach my $file_op ( @{ $files_list }) {
-            print "\tFile-OP: $file_op\n";
+            foreach my $file_name (keys %{ $file_op } ) {
+                print "\tFile-OP: $file_name\n";
+            }
         }
-        my $commands_list = $todo->commands;
+        my $commands_list = $todo->commands();
         foreach my $command_op ( @{ $commands_list }) {
             print "\tCommand-OP: $command_op\n";
         }
-        my $packages_list = $todo->packages;
-        foreach my $pkg_op ( @{ $packages_list }) {
-            print "\tPackage-OP: $pkg_op\n";
+        my $packages_list = $todo->packages();
+        foreach my $pkg_string ( @{ $packages_list }) {
+            print "\tPackage-OP: $pkg_string\n";
         } 
     }
 }
@@ -114,7 +124,8 @@ sub execute_all() {
         my $files_list = $todo->files;
         foreach my $file_ops_hash ( @{ $files_list }) {
             print "Calling file op: "; #TODO
-            &file_op($file_ops_hash);
+            my $result = &file_op($file_ops_hash);
+            print "Result: $result\n";
         }
         my $commands_list = $todo->commands;
         foreach my $command_string ( @{ $commands_list }) {
@@ -227,8 +238,8 @@ sub append_lines() {
 sub package_op() {
     #print "Packages operations!\n";
     my $package = $_[0]; 
-    my $pacmanInstall = "pacman -S package --noconfirm";
-    print "Executing package operation: $pacmanInstall";
+    my $pacmanInstall = "pacman -S --needed --noconfirm $package";
+    print "=>Package operation: $pacmanInstall";
     my $output = `$pacmanInstall 2>&1`;
     return $output;
 }
@@ -237,7 +248,7 @@ sub command_op() {
     #print "Command operations!\n";
     my $command_string = $_[0]; 
     #exec $command_string;
-    print "Executing comand: $command_string";
+    print "=>Executing command: $command_string";
     my $output = `$command_string 2>&1`;
     return $output;
 }
