@@ -18,6 +18,7 @@ $load_facts = [pscustomobject]@{
     msys2_install_dir = $null
     msys2_clean = $False # eq 'synchronized'
     msys2_packages = @{}
+    avail_progs = @()
     debug_messages = @()
 };
 
@@ -26,7 +27,7 @@ Function Get_Module_Load_Facts() {
     return $script:load_facts; # TODO 'explode' packages array
 }
 
-Export-ModuleMember 'Get_Module_Load_Facts'; # Print information about the MSYS2 installation (for calling script)
+Export-ModuleMember 'Get_Module_Load_Facts'; # Print information about the MSYS2 installation 
 
 # Test if $MSYS2_Path and $MSYS2_User exist.. 
 $MSYS2_path_exists = Test-Path $($MSYS2_Path);
@@ -59,13 +60,18 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
 
     # Now that we have the MSYS2 executables in PATH, the paths to GNU programs are standardized. 
     # Memento: The EXE used here is that of MSYS2 (Cygwin), but not MINGW64 etc.
-    $u_name_rv = uname -rv;
-    $which_bash = which bash;
-    $which_perl = which perl;
-    $which_wget = which wget
+    $u_name_rv = iex "uname -rv";
+    $which_bash = iex "which bash";
+    $which_curl = iex "which curl";
+    $which_git = iex "which git";
+    $which_perl = iex "which perl";
+    $which_wget = iex "which wget";
+
+    $script:load_facts.'avail_progs' += ($which_bash, $which_curl, $which_git, $which_perl, $which_wget);
+
     $msys2Packages = @() # Read currently installed packages with pacman -Q
     $pacmanQuery = "pacman -Q";
-    $pacmanUpdatesAvailable = "pacman -Syu --noconfirm"; # check if core system updates available
+    $pacmanUpdatesAvailable = "pacman -Syu --noconfirm"; # check if core system updates are available
     $pacmanPackageUpdate = "pacman -Suy --noconfirm";
     $pacmanSystemUpdate = "pacman -Syyuu --noconfirm"
     $pacmanInstall = "pacman -S --needed --noconfirm"

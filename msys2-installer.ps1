@@ -89,7 +89,7 @@ $perl_install_script_loc = "$Current_Script_loc\install.pl"
 Function Run_Install_Script() {
     $file_exists = $False;
     while ( $file_exists -ne $True ) {
-        $recipe = Read-Host -Prompt "`nPls. tell me which recipe to run (YML file) or type 'x' to exit";
+        $recipe = Read-Host -Prompt "`nPls. tell me which recipe to run (YAML file), or type 'x' to exit";
         if($recipe -eq 'x') {
             $file_exists = $True; # hack
         }
@@ -99,12 +99,13 @@ Function Run_Install_Script() {
             $file_exists = Test-Path "$recipes_folder\$recipe";
             if($file_exists) {
                 $perl_install_script_cygpath = cygpath -u $perl_install_script_loc;
+                #Write-Host "`t->Using Perl install script @ $perl_install_script_cygpath`n";
                 $yaml_file_cygpath = cygpath -u "$recipes_folder\$recipe";
-                Write-Host "YAML Unix path: $yaml_file_cygpath";
+                #Write-Host "`n->Using Unix path for YAML file: $yaml_file_cygpath";
                 Invoke-Command { 
                     #$queryRes = iex "perl -s $perl_install_script_loc $yaml_file_cygpath"; # arguments?
-                    $perl_cmd = "perl -s $perl_install_script_cygpath $yaml_file_cygpath";
-                    iex "bash -c '$perl_cmd'"; # execute in bash!!!
+                    $perl_cmd = "perl -s $perl_install_script_cygpath $yaml_file_cygpath $script:settings['msys2.install.dir']";
+                    iex "bash -c '$perl_cmd'"; # execute Perl in bash!!!
                     Write-Host "Receipe successfully executed!";
                 }
             }
@@ -150,7 +151,7 @@ Function Loop_Menu() {
     do {
         $activity = Read-Host -Prompt "Please choose an activity: 
         Type 'H' to get information about this MSYS2 installation. 
-        Type 'I' to run a YAML installer recipe. 
+        Type 'Y' to run a YAML installer recipe. 
         Type 'P' to install missing Perl modules. 
         Type 'A' for a MSYS2-packing (package building) environment. 
         Type 'X' to exit this menu.";
@@ -164,7 +165,7 @@ Function Loop_Menu() {
                 Msys_Install_Required_Packages
                 # Stay in loop
             }
-            I {
+            Y {
                 Run_Install_Script
                  # Stay in loop
             }
@@ -194,7 +195,10 @@ Import-Module "$Current_Script_loc\msys2-env.psm1" -ArgumentList @(
 # Now, Perl modules are somewhat different in MSYS2.. We have to look at https://packages.msys2.org/queue
 # The point is, we cannot execute the YAML installer Perl file without having loaded the required Perl modules!
 $requiredPerlModules = @(
-    "perl-YAML-Syck"
+    "perl-YAML-Syck",
+    "perl-Path-Tiny",
+    "perl-File-Which",
+    "perl-Params-Util"
 );
 
 $module_load_facts = Get_Module_Load_Facts;

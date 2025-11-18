@@ -1,7 +1,7 @@
-Motto: As good old Cygwin had a nice GUI.. I want one for MSYS2!
+Motto: As good old Cygwin had a nice GUI.. I want one for MSYS{,}2!
 
-Goal: Build Linux toolchains (MINGW32, MINGW64, UCRT64, CLANG64/LLVM) for use on Windows using Cmake.
-	Optionally, provide build environments for XMake, Bazel et al.
+Goal: Build Linux toolchains (MINGW32, MINGW64, UCRT64, CLANG64/LLVM) for use on Windows.
+	Optionally, Install frontends for the LLVM, e.g. Rust.
 
 Motivation: 
 
@@ -12,10 +12,11 @@ for both i386 and x86_64, of course, but also the newer runtime UCRT64, as well 
 
 Installation steps:
 
-	* Download MSYS2-base installer and install into folder 'msys2' (this can be changed via 'msys2.properties' file).
-	* Configure MSYS2 installation: A User for building packages should be established, defaulting to user 'vagrant'
-	  (therefore, MSYS configuration files reside in folder 'vagrant', but must be renamed before being usable).
-	  Note: Some commands are not available in the base MSYS2 installation, e.g. 'makepkg'; therfore, these _must_ 
+	* Download MSYS2-base installer and install into folder 'msys2' (this can be changed via the 'msys2.properties' 
+	  file).
+	* Configure MSYS2 installation: A User for building packages should be established, defaulting to user 'qafila'
+	  (arab. for 'caravan').
+	  Note: Some commands are not available in the base MSYS2 installation, e.g. 'makepkg'; therefore, these _must_ 
 	  be run on a command line tool like Bash, which is only possible "within" the MSYS2 installation.
 	* In order to connect and download GitHub sources, he/she should be able to connect via the GitHub SSH device..
 	  -> Use MSYS2 GNU tools to generate keys
