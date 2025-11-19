@@ -3,6 +3,8 @@
 
   platform: mingw64
 
+  version: >3.6.5
+
   steps:
 
     - step: 
