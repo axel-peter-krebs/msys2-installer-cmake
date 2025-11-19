@@ -4,7 +4,8 @@
 # - Return a hashtable of environment 'facts', that is, has the MSYS2 installation been found, which packages are installed, a.s.o.
 param (
     [parameter(Position=0,Mandatory=$True)][String] $MSYS2_Path,
-    [parameter(Position=1,Mandatory=$False)][String] $MSYS2_Download_URL
+    [parameter(Position=1,Mandatory=$False)][String] $MSYS2_Download_URL,
+    [parameter(Position=2,Mandatory=$False)][Bool] $sync_on_start
 )
 
 <#
@@ -16,8 +17,8 @@ Write-Host "MSYS2_Download_URL: $MSYS2_Download_URL"
 # and kept in this hashtable for investigation by the caller.
 $load_facts = [pscustomobject]@{
     msys2_install_dir = $null
-    msys2_clean = $False # eq 'synchronized'
-    msys2_packages = @{}
+    msys2_clean = $False # eq 'synchronized'; 
+    msys2_packages = @{} # make list of installed packages available outside this module
     avail_progs = @()
     debug_messages = @()
 };
@@ -50,6 +51,11 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
     # 'cygpath', 'rm', 'uname'. 'which' etc.
     $Env:Path = "$Env:MSYS2_HOME\usr\bin\;" + $Env:Path;
 
+    # now, which toolchain to use? 
+    $user_env_msystem = $Env:MSYSTEM;
+    if ( $user_env_msystem -eq $null ) {
+        $script:load_facts.'debug_messages' += "The environment variable MSYSTEM is not set! ";
+    }
     # $Env:MSYSTEM = "ucrt64" ??? 
 
     # Note: In PS, we cannot access the MSYS2 fielsystem yet! To operate om files, we must translate
@@ -61,44 +67,41 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
     # Now that we have the MSYS2 executables in PATH, the paths to GNU programs are standardized. 
     # Memento: The EXE used here is that of MSYS2 (Cygwin), but not MINGW64 etc.
     $u_name_rv = iex "uname -rv";
-    $which_bash = iex "which bash";
-    $which_curl = iex "which curl";
-    $which_git = iex "which git";
-    $which_perl = iex "which perl";
-    $which_wget = iex "which wget";
+    $which_bash = iex "sh -c 'which bash'";
+    $which_curl = iex "sh -c 'which curl'";
+    $which_git = iex "sh -c 'which git'";
+    $which_perl = iex "sh -c 'which perl'";
+    $which_wget = iex "sh -c 'which wget'";
 
     $script:load_facts.'avail_progs' += ($which_bash, $which_curl, $which_git, $which_perl, $which_wget);
 
     $msys2Packages = @() # Read currently installed packages with pacman -Q
     $pacmanQuery = "pacman -Q";
-    $pacmanUpdatesAvailable = "pacman -Syu --noconfirm"; # check if core system updates are available
-    $pacmanPackageUpdate = "pacman -Suy --noconfirm";
-    $pacmanSystemUpdate = "pacman -Syyuu --noconfirm"
+    $pacmanSyncAllPackages = "pacman -Suy --noconfirm"; 
+    $pacmanSystemUpdate = "pacman -Syyuu --noconfirm" # check if core system updates are available
     $pacmanInstall = "pacman -S --needed --noconfirm"
     
     # Using the Windows port of pacman here
     Function __query_packages() {
         #Write-Host "Querying local packages.."
-        Invoke-Command { 
-            $queryRes = iex $pacmanQuery;  # this returns a string, separated by empty space
-            $res = $queryRes -split ' '; # does not have any notion of a 'step'!
-            $dual_toggle = 1;
-            $currentPackageName = '';
-            $currentVersion = '';
-            foreach($elem in $res) { # assume order: pkg_name, pkg_version
-                if ($dual_toggle -eq 1) {
-                    #Write-Host "cnt=1, elem = $elem"
-                    $currentPackageName = $elem;
-                    $dual_toggle = 2; # set-1-up
-                }
-                elseif($dual_toggle -eq 2) {
-                    #Write-Host "cnt=2, elem = $elem"
-                    $packageAndVersionTuple = @{$currentPackageName=$elem} ;
-                    $script:msys2Packages += $packageAndVersionTuple; # add tuple
-                    $dual_toggle = 1; # set-1-down
-                    $currentpackageName = '' # re-set
-                    $currentVersion = '' # re-set
-                }
+        $queryRes = iex "sh -c '$pacmanQuery'";  # this returns a string, separated by empty space
+        $res = $queryRes -split ' '; # does not have any notion of a 'step'!
+        $dual_toggle = 1;
+        $currentPackageName = '';
+        $currentVersion = '';
+        foreach($elem in $res) { # assume order: pkg_name, pkg_version
+            if ($dual_toggle -eq 1) {
+                #Write-Host "cnt=1, elem = $elem"
+                $currentPackageName = $elem;
+                $dual_toggle = 2; # set-1-up
+            }
+            elseif($dual_toggle -eq 2) {
+                #Write-Host "cnt=2, elem = $elem"
+                $packageAndVersionTuple = @{$currentPackageName=$elem} ;
+                $script:msys2Packages += $packageAndVersionTuple; # add tuple
+                $dual_toggle = 1; # set-1-down
+                $currentpackageName = '' # re-set
+                $currentVersion = '' # re-set
             }
         } 
     }
@@ -118,17 +121,17 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
     $pacman_lock = Test-Path $pacman_lock_file;
     #Write-Host "Pacman lock file exists: $pacman_lock";
 
-    Function Msys_Sync() {
+    Function Msys_Sync_Packages() {
+        $updateRes = "";
         if($pacman_lock -eq $True) {
             Write-Host "Cannot synchronize database: pacman found locked! Unlock with 'msys_unlock' and try again."
         }
         else {
-            Invoke-Command { 
-                $updateRes = iex $pacmanUpdate;  # this returns a string, separated by empty space
-                $script:load_facts.'msys2_clean' = $True;
-                Write-Host "Update successful, pacman -Syu returned: $updateRes"
-            } 
+            
+            $updateRes = iex "sh -c '$pacmanSyncAllPackages' 2>&1";  # this returns a string, separated by empty space
+            $script:load_facts.'msys2_clean' = $True; 
         }
+        return $updateRes;
     }
 
     if ( $pacman_lock -eq $True ) { # True = pacman locked
@@ -148,12 +151,13 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         Export-ModuleMember 'Msys_Unlock'; # Remove the db.lck file
     }
     else {
-        $updAvail = iex $pacmanUpdatesAvailable;
+        $up2date = Msys_Sync_Packages;
+        Write-Host "Update successful, pacman -Suy returned: $up2date";
         #$updAvail -match '(.+)Starting core system upgrade(?<status>.+)';
         #$updAvail -match '(.+)Starting full system upgrade(.+)';
         $script:load_facts.'msys2_clean' = $True;
         __query_packages; # Fills the package-version array ('msys2Packages'), s.a.
-        $script:load_facts.'msys2_packages' = $msys2Packages; # make package list available outside this module
+        $script:load_facts.'msys2_packages' = $msys2Packages; 
         # TODO: synchronize automatically?
     }
 
@@ -174,6 +178,16 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         }
     }
 
+    Function Msys_System_Upgrade() {
+        try {
+             Write-Host "Updating packages with '$pacmanSystemUpdate'";
+             iex $pacmanSystemUpdate;
+        }
+        catch {
+            Write-Host "Problem updating MSYS2 core!";
+        }
+    }
+
     Function Msys_Info() {
         Write-Host "Local MSYS2 installation in '$Env:MSYS2_HOME' [$u_name_rv]";
         Write-Host "Invoke the cmdlet 'get_module_load_facts' to see all configuration settings.";
@@ -184,14 +198,17 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         Write-Host "Available options are: ";
         Write-Host "`tType 'msys_info' to print some information about this MSYS2 installation.";
         Write-Host "`tType 'msys_list_packages' to list all packages found installed.";
-        Write-Host "`tType 'Msys_Install_Package [package_name]' to install packages."
-        Write-Host "`tType 'msys_sync' to synchronize the MSYS2 database; Updates all packages to their latest version.";
+        Write-Host "`tType 'msys_sync_packages' to synchronize the MSYS2 database (already done loading this script).";
+        Write-Host "`tType 'msys_install_package [package_name]' to install a package (and its dependencies).";
+        Write-Host "`tType 'msys_system_upgrade to upgrade MSYS2 (Core libraries and packages).";
     }
 
-    Export-ModuleMember 'msys_Info'; # print information about this MSYS2 installation
+    Export-ModuleMember 'Msys_Info'; # print information about this MSYS2 installation
     Export-ModuleMember 'Msys_List_Packages';  # List installed packages
+    Export-ModuleMember 'Msys_Sync_Packages';  # Update the database
     Export-ModuleMember 'Msys_Install_Package';  # Install a package
-    Export-ModuleMember 'Msys_Sync';  # Update the database
+    Export-ModuleMember 'Msys_System_Upgrade';
+
 }
 
 else {

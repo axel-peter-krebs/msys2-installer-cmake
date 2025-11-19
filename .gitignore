@@ -3,8 +3,8 @@ downloads/
 # Do not submit unpacked/checked-out sources
 sources/
 # Do not submit GitHub checkouts
-MINGW-packages-master/
-MSYS2-packages-master/
+MINGW-packages/
+MSYS2-packages/
 # Do not submit the installed MSYS2 runtime
 msys*/
 # Do not publish the IDE
