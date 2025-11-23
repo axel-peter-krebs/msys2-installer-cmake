@@ -25,3 +25,5 @@ curl -L https://raw.githubusercontent.com/git-for-windows/build-extra/HEAD/git-f
 exit
 printenv
 exit
+makepkg
+exit

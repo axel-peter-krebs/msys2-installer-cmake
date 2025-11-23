@@ -11,6 +11,7 @@ param (
 <#
 Write-Host "MSYS2_Path: $MSYS2_Path"
 Write-Host "MSYS2_Download_URL: $MSYS2_Download_URL"
+Write-Host "sync_on_start: $sync_on_start"
 #>
 
 # When executing this script, some facts about the environment are gathered 
@@ -45,6 +46,7 @@ else {
 
 # Now that we have MSYS2 on PATH, we can check some progs and config, like existing files etc. 
 # AND: install packages! (Maybe)
+# Note: All MSYS2 progs ought to be called in a bash-like manner, e.g. iex "sh -c $program"!
 if($script:load_facts.'msys2_install_dir' -ne $null) {
 
     # Set 'Env:Path' variable to 'Env:MSYS2_HOME\usr\bin\' so we can execute programs like 
@@ -58,8 +60,8 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
     }
     # $Env:MSYSTEM = "ucrt64" ??? 
 
-    # Note: In PS, we cannot access the MSYS2 fielsystem yet! To operate om files, we must translate
-    # pathes with 'cygpath'.. 
+    # Note: In PS, we cannot access the MSYS2 filesystem yet! To operate om files, we must translate
+    # all paths with 'cygpath'!
     $pacman_lock_file = cygpath -w /var/lib/pacman/db.lck;
     $cyg_root = cygpath -w /
     $cyg_home = cygpath -w /home
@@ -75,11 +77,11 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
 
     $script:load_facts.'avail_progs' += ($which_bash, $which_curl, $which_git, $which_perl, $which_wget);
 
-    $msys2Packages = @() # Read currently installed packages with pacman -Q
+    $msys2Packages = @(); # Read currently installed packages with pacman -Q
     $pacmanQuery = "pacman -Q";
     $pacmanSyncAllPackages = "pacman -Suy --noconfirm"; 
-    $pacmanSystemUpdate = "pacman -Syyuu --noconfirm" # check if core system updates are available
-    $pacmanInstall = "pacman -S --needed --noconfirm"
+    $pacmanSystemUpdate = "pacman -Syyuu --noconfirm"; # check if core system updates are available
+    # $pacmanInstall = "pacman -S --needed --noconfirm #{pkg}" TODO string replacement
     
     # Using the Windows port of pacman here
     Function __query_packages() {
@@ -127,11 +129,12 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
             Write-Host "Cannot synchronize database: pacman found locked! Unlock with 'msys_unlock' and try again."
         }
         else {
-            
             $updateRes = iex "sh -c '$pacmanSyncAllPackages' 2>&1";  # this returns a string, separated by empty space
+            __query_packages;
+            $script:load_facts.'msys2_packages' = $script:msys2Packages; 
             $script:load_facts.'msys2_clean' = $True; 
         }
-        return $updateRes;
+        return $script:load_facts;
     }
 
     if ( $pacman_lock -eq $True ) { # True = pacman locked
@@ -151,13 +154,19 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         Export-ModuleMember 'Msys_Unlock'; # Remove the db.lck file
     }
     else {
-        $up2date = Msys_Sync_Packages;
-        Write-Host "Update successful, pacman -Suy returned: $up2date";
-        #$updAvail -match '(.+)Starting core system upgrade(?<status>.+)';
-        #$updAvail -match '(.+)Starting full system upgrade(.+)';
-        $script:load_facts.'msys2_clean' = $True;
-        __query_packages; # Fills the package-version array ('msys2Packages'), s.a.
-        $script:load_facts.'msys2_packages' = $msys2Packages; 
+
+        if ($sync_on_start) {
+            $up2date = Msys_Sync_Packages;
+            #$updAvail -match '(.+)Starting core system upgrade(?<status>.+)';
+            #$updAvail -match '(.+)Starting full system upgrade(.+)';
+            #$script:load_facts.'msys2_clean' = $True;
+            Write-Host "Update successful";
+        }
+        else {
+            Write-Host "The property 'sync.on.start' was set to 'False': MSYS2 not updated!";
+            __query_packages; # Fill the array nonetheless
+            $script:load_facts.'msys2_packages' = $script:msys2Packages; 
+        }
         # TODO: synchronize automatically?
     }
 
@@ -165,17 +174,15 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         param (
             [parameter(Position=0,Mandatory=$True)][String] $pkg
         )
-        begin {}
-        process {
-            try {
-                $cmd = "$pacmanInstall $pkg";
-                Write-Host "Installing package with command expression: $cmd";
-                iex $cmd;
-            }
-            catch {
-                Write-Host "Problem installing $pkg!";
-            }
+        try {
+            $cmd = "$pacmanInstall $pkg";
+            Write-Host "Installing package with command expression: $cmd";
+            iex "sh -c '$cmd'";
         }
+        catch {
+            Write-Host "Problem installing $pkg!";
+        }
+
     }
 
     Function Msys_System_Upgrade() {
@@ -198,7 +205,7 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
         Write-Host "Available options are: ";
         Write-Host "`tType 'msys_info' to print some information about this MSYS2 installation.";
         Write-Host "`tType 'msys_list_packages' to list all packages found installed.";
-        Write-Host "`tType 'msys_sync_packages' to synchronize the MSYS2 database (already done loading this script).";
+        Write-Host "`tType 'msys_sync_packages' to synchronize the MSYS2 database ('clean').";
         Write-Host "`tType 'msys_install_package [package_name]' to install a package (and its dependencies).";
         Write-Host "`tType 'msys_system_upgrade to upgrade MSYS2 (Core libraries and packages).";
     }

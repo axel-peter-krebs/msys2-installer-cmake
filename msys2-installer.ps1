@@ -5,17 +5,21 @@ param(
     [parameter(Position=0,Mandatory=$False)][Bool] $show_debug_information
 )
 
+$Current_Script_loc = $PSScriptRoot;
+
 Function __log_if_debug([string] $debug_message) {
     if ($show_debug_information -eq $true) {
         Write-Host $debug_message
     }
 }
 
-$Current_Script_loc = $PSScriptRoot;
+Function __reload_script() {
+    . "$Current_Script_loc\msys2-installer.ps1"; # reload the whole script
+}
 
 # Assume sensible defaults for MSYS2 location, MSYS2 user, download location, source location a.s.o.
 $settings = @{
-    'sync.on.start' = "False";
+    'sync.on.start' = "True";
     'downloads.dir' = "$Current_Script_loc\downloads"; # default location for downloads
     'msys2.install.dir' = "$Current_Script_loc\msys64"; # default, can be overridden in msys2.properties file
     'github.local.dir' = "C:\GitHub"; # default, can be overridden
@@ -29,7 +33,7 @@ $settings = @{
 
 Function print_settings() {
     $settings.Keys | ForEach-Object{
-        $message = 'Key: {0}, Value: {1}`n' -f $_, $settings[$_] | Write-Host
+        $message = "Key: {0}, Value: {1}" -f $_, $settings[$_] | Write-Host
     }
 }
 
@@ -113,7 +117,7 @@ $perl_install_script_loc = "$Current_Script_loc\install.pl"
 Function Run_Install_Script() {
     $file_exists = $False;
     while ( $file_exists -ne $True ) {
-        $recipe = Read-Host -Prompt "`nPls. tell me which recipe to run (YAML file), or type 'x' to exit.";
+        $recipe = Read-Host -Prompt "`nPls. tell me which recipe to run (YAML file), or type 'x' to exit: _";
         if($recipe -eq 'x') {
             $file_exists = $True; # hack
         }
@@ -141,7 +145,9 @@ Function Run_Install_Script() {
 
 $required_packages_for_packing = @(
     "base-devel",
-    "perl-File-Next"
+    "perl-File-Next",
+    "gcc",
+    "autotools"
 );
 
 $missing_packer_dependencies = @();
@@ -172,16 +178,18 @@ Function Start_Packing() {
     )
 
     $packer_load_facts = Get_Packer_Load_Facts;
-    Write-Host "The MSYS2 git repository for packages is in " $packer_load_facts.'msys2_pkgs_git_repo_dir';
-    Write-Host "The MINGW-W64 git repository for packages is in " $packer_load_facts.'mingw64_pkgs_git_repo_dir';
+    $msys2_packages_dir = $packer_load_facts.'msys2_pkgs_git_repo_dir';
+    $mingw_packages_dir = $packer_load_facts.'mingw64_pkgs_git_repo_dir';
+    __log_if_debug "The MSYS2 git repository for packages is in $msys2_packages_dir.";
+    __log_if_debug "The MINGW-W64 git repository for packages is in $mingw_packages_dir.";
 
-    $pkg_kind = Read-Host -Prompt "What kind of package do you want to build (type 'c' for MSYS2 [Cygwin], 'w' for MINGW-W64 packages, or 'x' to exit)?";
-    if ( $pkg_kind -eq 'c' ) {
-        $pkg = Read-Host -Prompt "Which package? Type 'l' for a list of locally installed packages.";
+    $pkg_kind = Read-Host -Prompt "What kind of package do you want to build (type 'A' for MSYS2 [Cygwin], 'B' for MINGW-W64 packages, 'C' for HDL packages (MINGW-w32), or 'x' to exit)?";
+    if ( $pkg_kind -eq 'a' ) {
+        $pkg = Read-Host -Prompt "Pls. type the name of the package (subdirectory in the GIT repository):";
         Make_MSYS2_Package($pkg);
     }
-    elseif ($pkg_kind -eq 'w') {
-        $pkg = Read-Host -Prompt "Which package?";
+    elseif ($pkg_kind -eq 'b') {
+        $pkg = Read-Host -Prompt "Pls. type the name of the package (subdirectory in the GIT repository):";
         Make_MINGW_Package($pkg);
     }
 
@@ -202,36 +210,45 @@ Function Install_Required_Packages() {
 # TODO: Build the menu dynamically, resp. which functions are available
 Function Loop_Menu() {
     param (
-        [parameter(Position=0,Mandatory=$True)][Bool] $packages_missing
+        [parameter(Position=0,Mandatory=$False)][Bool] $packages_missing,
+        [parameter(Position=1,Mandatory=$False)][Bool] $clean_start_required
     )
     $exitWhile = $False;
     do {
         $prompt = "Please choose an activity: `n";
-        $prompt += "`tType 'I' to get information about this MSYS2 installation.`n";
+        $prompt += "`tType 'A' to get help about this MSYS2 installation.`n";
         $prompt += "`tType 'X' to exit this menu.`n";
-        if($packages_missing) {
-            $prompt += "`tType 'R' to install missing requirements.`n";
+        if ( $clean_start_required ) {
+            $prompt += "`tType 'E' to reload the MSYS2 library in a clean way (and unlock DB if necessary).`n";
         }
         else {
-            $prompt += "`tType 'Y' to run a YAML installer recipe.`n";
-            $prompt += "`tType 'P' for a MSYS2-packing (package building) environment.`n";
-        }
-        $activity = Read-Host -Prompt $prompt
-        switch ($activity) {
-            I {
-                Msys_Help;
-                $exitWhile = $True;
+            if ( $packages_missing ) {
+                $prompt += "`tType 'R' to install missing requirements.`n";
             }
-            X {
-                Set-Location $Current_Script_loc;
-                $exitWhile = $True;
+            else {
+                $prompt += "`tType 'P' for a MSYS2-packing (package building) environment.`n";
+                $prompt += "`tType 'Y' to run an advanced YAML installer recipe (Perl).`n";
+            }
+        }
+        $activity = Read-Host -Prompt $prompt;
+        switch ($activity) {
+            A {
+                Msys_Help;
+                #$exitWhile = $True;
+            }
+            E {
+                Msys_Sync_Packages;
+                Write-Host "MSYS2 has been reloaded (sync'd)..";
+                __reload_script;
+                #$exitWhile = $True;
             }
             R {
                 Install_Required_Packages;
+                __reload_script;
             }
             Y {
                 Run_Install_Script;
-                 # Stay in loop
+                # Stay in loop
             }
             P {
                 $retval = Start_Packing;
@@ -242,6 +259,10 @@ Function Loop_Menu() {
                     Write-Host "Something unexpected happended..";
                 }
                 #$exitWhile = $True;
+            }
+            X {
+                Set-Location $Current_Script_loc;
+                $exitWhile = $True;
             }
             default { 
                 Write-Host "Your input has not been recognized as a valid option!" 
@@ -312,13 +333,12 @@ if($module_load_facts.'msys2_clean' -eq $True) {
     if($missing_packages_merged.count -gt 0) {
         $are_packages_missing = $True;
     }
-    Loop_Menu($are_packages_missing)
+    Loop_Menu $are_packages_missing $False;
 }
 else {
-    Write-Host "There have been problems loading the local MSYS2 installation.. Messages: "
+    Write-Host "There have been some problems loading the local MSYS2 installation.. Log: "
     foreach($msg in $module_load_facts.debug_messages) {
         Write-Host "`t$msg";
     }
-    Write-Host "Type 'msys_help' to get a list of options."
-    Set-Location $Current_Script_loc; 
+    Loop_Menu $False $True;
 }
