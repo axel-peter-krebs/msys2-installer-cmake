@@ -27,8 +27,10 @@ $settings = @{
     'msys2.packages.master.url' = "https://github.com/msys2/MSYS2-packages.git"; 
     'msys2.mingw64.packages.master.url' = "https://github.com/msys2/MINGW-packages.git"; 
     'msys2.mingw64.hdl.url' = ""; # MINGW-w32
-    'msys2.user.dir' =  'qafila'; <# a MSYS" 'registered' user that has local admissive rights to install packages, execute build tools (CMake, for example) a.m. \
-        (Perl); if a relative path is given, the user 'home' will be under /home of the MSYS2 installation. 'qafila' = arab. for caravan. #>
+    'msys2.keyring.url' = "https://github.com/msys2/MSYS2-keyring.git";
+    'msys2.user.dir' =  'qafila' <# a MSYS" 'registered' user that has local admissive rights to install packages, 
+        execute build tools (CMake, for example) a.m. (Perl); if a relative path is given, the user 'home' 
+        will be under /home of the MSYS2 installation. #>
 };
 
 Function print_settings() {
@@ -52,28 +54,31 @@ Import-Csv $settingsFile -Delimiter "=" -Header Key,Value | ForEach-Object {
         #$settings[$key] = $val;
     }
     elseif($key -eq 'msys2.install.dir') {
-        $overridden = $True
+        $overridden = $True;
     }
     elseif($key -eq 'msys2.download.url') {
-        $overridden = $True
+        $overridden = $True;
     }
     elseif($key -eq 'msys2.packages.master.url') {
-        $overridden = $True
+        $overridden = $True;
     }
     elseif($key -eq 'msys2.mingw64.packages.master.url') {
-        $overridden = $True
+        $overridden = $True;
     }
     elseif($key -eq 'msys2.mingw64.hdl.url') {
-        $overridden = $True
+        $overridden = $True;
+    }
+    elseif ( $key -eq 'msys2.keyring.url') {
+        $overridden = $True;
     }
     elseif($key -eq 'msys2.user.dir') {
-        $overridden = $True
+        $overridden = $True;
     }
     elseif($key -eq 'github.local.dir') {
-        $overridden = $True
+        $overridden = $True;
     }
     elseif($key -eq 'sync.on.start') {
-        $overridden = $True
+        $overridden = $True;
     }
     # Show overrides to user for clarification if settings in msys2.properties
     if($overridden -eq $True){
@@ -102,6 +107,35 @@ Import-Module "$Current_Script_loc\msys2-env.psm1" -ArgumentList @(
 
 $module_load_facts = Get_Module_Load_Facts;
 
+<#
+if($Env:HOME -ne $null) {
+    Write-Host "Environment was properly initialized.. Will lead you to Env:HOME directory now.";
+    Set-Location $Env:HOME;
+}
+else {
+    Write-Host "Env:HOME seems to be missing.. ";
+    Set-Location $Current_Script_loc
+}
+#>
+
+Function Enter_Msys2_Shell() {
+    param (
+        [parameter(Position=0,Mandatory=$True)][String] $msys2_arch,
+        [parameter(Position=1,Mandatory=$False)][String] $user_home_dir
+    )
+    $user_home_cygpath = cygpath -u $Current_Script_loc; # if '$user_home_dir' is null
+    if ($user_home_path -ne $null) {
+        $user_home_cygpath = cygpath -u $user_home_dir;
+    }
+    $msys2_shell_cmd_path = $script:settings.'msys2.install.dir' + "\msys2_shell.cmd";
+    $processOptions = @{
+        FilePath = "$msys2_shell_cmd_path"
+        UseNewEnvironment = $true
+        ArgumentList = "-$msys2_arch -where $user_home_dir" # "-conemu -mingw32"
+    }
+    $proc = Start-Process @processOptions -Wait -PassThru # -WorkingDirectory $user_home_dir 
+}
+
 $required_packages_for_running_installer = @(
     "perl-YAML-Syck",
     "perl-Path-Tiny",
@@ -117,21 +151,23 @@ $perl_install_script_loc = "$Current_Script_loc\install.pl"
 Function Run_Install_Script() {
     $file_exists = $False;
     while ( $file_exists -ne $True ) {
-        $recipe = Read-Host -Prompt "`nPls. tell me which recipe to run (YAML file), or type 'x' to exit: _";
+        $recipe = Read-Host -Prompt "`nPls. tell me which recipe to run (path to 'recipe.yml' file), or type 'x' to exit: _";
         if($recipe -eq 'x') {
             $file_exists = $True; # hack
         }
         else {
-            Write-Host "YAML file to execute: $recipes_folder\$recipe";
+            Write-Host "YAML file to execute: $recipes_folder\$recipe\recipe.yml";
             $file_exists = Test-Path "$recipes_folder\$recipe";
             if ($file_exists) {
                 # Now, if we want to use the MSYS2-Perl, we mimic a Unix-like environment, 
                 # bcs. we will execute Perl in Bash (bash has path settings of MSYS2 installation)
-                $perl_install_script_cygpath = cygpath -u $perl_install_script_loc;
-                $yaml_file_cygpath = cygpath -u "$recipes_folder\$recipe";
+                $perl_install_script_cygpath = cygpath -u $perl_install_script_loc; # short for iex "sh -c 'cygpath -u $perl_install_script_loc";
+                $yaml_file_cygpath = cygpath -u $recipes_folder\$recipe\recipe.yml;
+                $msys2_install_cygpath = $script:settings.'msys2.install.dir'; # cygpath would always be '/'!
                 Invoke-Command { 
                     #$queryRes = iex "perl -s $perl_install_script_loc $yaml_file_cygpath"; # arguments?
-                    $perl_cmd = "perl -s $perl_install_script_cygpath $yaml_file_cygpath $script:settings['msys2.install.dir']";
+                    $perl_cmd = "perl -s $perl_install_script_cygpath $yaml_file_cygpath $msys2_install_cygpath";
+                    __log_if_debug "Running Perl command: $perl_cmd";
                     iex "bash -c '$perl_cmd'"; # execute Perl in bash!!!
                     Write-Host "Receipe successfully executed!";
                 }
@@ -147,7 +183,8 @@ $required_packages_for_packing = @(
     "base-devel",
     "perl-File-Next",
     "gcc",
-    "autotools"
+    "autotools",
+    "cmake"
 );
 
 $missing_packer_dependencies = @();
@@ -183,27 +220,39 @@ Function Start_Packing() {
     __log_if_debug "The MSYS2 git repository for packages is in $msys2_packages_dir.";
     __log_if_debug "The MINGW-W64 git repository for packages is in $mingw_packages_dir.";
 
-    $pkg_kind = Read-Host -Prompt "What kind of package do you want to build (type 'A' for MSYS2 [Cygwin], 'B' for MINGW-W64 packages, 'C' for HDL packages (MINGW-w32), or 'x' to exit)?";
-    if ( $pkg_kind -eq 'a' ) {
-        $pkg = Read-Host -Prompt "Pls. type the name of the package (subdirectory in the GIT repository):";
-        Make_MSYS2_Package($pkg);
+    $pkg_kind = Read-Host -Prompt "What kind of package do you want to build? Type
+        - 'c2' for a MSYS2 [Cygwin] package build, 
+        - 'w64' for MINGW-W64 package build, 
+        - 'w32' for HDL packages (MINGW-w32), or 
+        - 'x' to exit this menu.`n";
+    if ( $pkg_kind -eq 'c2' ) {
+        $pkg = Read-Host -Prompt "Pls. type the name of the package (subdirectory in the GIT repository)`n";
+        $res = MakePKG_MSYS2($pkg);
+        Write-Host "->makepkg returned $res.";
     }
-    elseif ($pkg_kind -eq 'b') {
-        $pkg = Read-Host -Prompt "Pls. type the name of the package (subdirectory in the GIT repository):";
-        Make_MINGW_Package($pkg);
+    elseif ($pkg_kind -eq 'w64') {
+        $pkg = Read-Host -Prompt "Pls. type the name of the package (subdirectory in the GIT repository)`n";
+        $res = MakePKG_MINGW($pkg);
+        Write-Host "->makepkg returned $res.";
     }
-
+    elseif ( $pkg_kind -eq 'x') {
+        Write-Host "Exiting packaging.."
+    }
+    else {
+        Write-Host "Could not understand your input: $pkg_kind. Exit."
+    }
     #Make_MINGW_Package($pkg);
     return "OK";
 }
 
 Function Install_Required_Packages() {
     $missing_packages_merged = $script:missing_packer_dependencies + $script:missing_yaml_packages;
+    $results = @();
     foreach ($missing_package in $missing_packages_merged) {
         Write-Host "Installing missing package: $missing_package..";
         $pacman_install_pkg_cmd = "pacman -S --needed --noconfirm $missing_package";
         $res = iex "sh -c '$pacman_install_pkg_cmd' 2>&1";
-        Write-Host "..Result was: $res";
+        $results += $res;
     }
 }
 
@@ -215,9 +264,9 @@ Function Loop_Menu() {
     )
     $exitWhile = $False;
     do {
-        $prompt = "Please choose an activity: `n";
-        $prompt += "`tType 'A' to get help about this MSYS2 installation.`n";
-        $prompt += "`tType 'X' to exit this menu.`n";
+        $prompt = "Please choose an activity:`n";
+        $prompt += "`tType 'A' to get info about this MSYS2 installation.`n";
+        $prompt += "`tType 'B' to bash into the MSYS2 installation.`n";
         if ( $clean_start_required ) {
             $prompt += "`tType 'E' to reload the MSYS2 library in a clean way (and unlock DB if necessary).`n";
         }
@@ -230,10 +279,15 @@ Function Loop_Menu() {
                 $prompt += "`tType 'Y' to run an advanced YAML installer recipe (Perl).`n";
             }
         }
+        $prompt += "`tType 'X' to exit this menu.`n";
         $activity = Read-Host -Prompt $prompt;
         switch ($activity) {
             A {
                 Msys_Help;
+                #$exitWhile = $True;
+            }
+            B {
+                Enter_Msys2_Shell "mingw64" "$Env:HOME";
                 #$exitWhile = $True;
             }
             E {
@@ -310,7 +364,7 @@ if($module_load_facts.'msys2_clean' -eq $True) {
         }
     }
 
-    # Set the user Env:HOME here 
+        # Set the user Env:HOME here 
     $msys2_user_dir = $script:settings.'msys2.user.dir';
     $msys_user_home_path = Convert-Path $($msys2_user_dir)
     if ($msys_user_home_path -ne $null) { # user settings 
@@ -318,16 +372,6 @@ if($module_load_facts.'msys2_clean' -eq $True) {
         $Env:HOME = Convert-Path $msys_user_home_path;
     }
     
-    <#
-    if($Env:HOME -ne $null) {
-        Write-Host "Environment was properly initialized.. Will lead you to Env:HOME directory now.";
-        Set-Location $Env:HOME;
-    }
-    else {
-        Write-Host "Env:HOME seems to be missing.. ";
-        Set-Location $Current_Script_loc
-    }
-    #>
     $missing_packages_merged = $script:missing_packer_dependencies + $script:missing_yaml_packages;
     $are_packages_missing = $False;
     if($missing_packages_merged.count -gt 0) {

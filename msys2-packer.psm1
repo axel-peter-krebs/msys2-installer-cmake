@@ -40,7 +40,7 @@ if($mingw64_package_repo_exists) {
     $script:load_facts.'mingw64_pkgs_git_repo_dir' = $MINGW64_Packages_Dest;
 }
 
-Function Make_MSYS2_Package() {
+Function MakePKG_MSYS2() {
     param (
         [parameter(Position=0,Mandatory=$True)][String] $pkg_name
     )
@@ -48,22 +48,28 @@ Function Make_MSYS2_Package() {
     $pkgbuild_dir = "$msys2_packages_dir\$pkg_name";
     $pgkbuild_cygpath = cygpath -u $pkgbuild_dir;
     Write-Host "Building package in $pgkbuild_cygpath.."
+    $result = "INCOMPLETE";
     try {
         Push-Location $pkgbuild_dir; # now, current path for bash is this location
-        $bash_cmd = "makepkg --check $pkg";
-        $result = iex "bash -c '$bash_cmd'"; # This will source the bash scripts, e.g. set environments etc.
-        Write-Host "'bash -c makepkg --check $pkg' returned result: $result";
-        #iex "bash -c '$bash_cmd'";
+        #iex "sh -c '. /etc/makepkg.conf'"; #| Write-Host
+        #$print_srcinfo_cmd = "makepkg --printsrcinfo";
+        #iex "sh -c '$print_srcinfo_cmd'";
+        $bash_cmd = "makepkg --packagelist";
+        #$bash_cmd = "makepkg --check $pkg"; no key verification! (TODO)
+        #$bash_cmd = "makepkg $pkg";
+        $result = iex "sh -c '$bash_cmd' 2>&1"; # This will source the bash scripts, e.g. set environments etc.
         Pop-Location
     }
     catch {
         Write-Host "Problem installing $pkg!";
+
     }
+    return $result;
 }
-Export-ModuleMember 'Make_MSYS2_Package'; 
+Export-ModuleMember 'MakePKG_MSYS2'; 
 
 # Now, for running 'makepkg', we need a bash-like environment.. 
-Function Make_MINGW_Package() {
+Function MakePKG_MINGW() {
     param (
         [parameter(Position=0,Mandatory=$True)][String] $pkg_name
     )
@@ -73,13 +79,13 @@ Function Make_MINGW_Package() {
     Write-Host "Building package in $pgkbuild_cygpath.."
     try {
         Push-Location $pkgbuild_dir; # now, current path for bash is this location
-        iex "sh -c '. /etc/makepkg.conf'"; #| Write-Host
-        $print_srcinfo_cmd = "makepkg --printsrcinfo";
-        iex "sh -c '$print_srcinfo_cmd'";
-        $list_packages_cmd = "makepkg --packagelist";
-        iex "sh -c '$list_packages_cmd'";
-        $bash_cmd = "makepkg --check $pkg";
-        #iex "bash -c '$bash_cmd'";
+        #iex "sh -c '. /etc/makepkg.conf'"; #| Write-Host
+        #$print_srcinfo_cmd = "makepkg --printsrcinfo";
+        #iex "sh -c '$print_srcinfo_cmd'";
+        #$list_packages_cmd = "makepkg --packagelist";
+        #iex "sh -c '$list_packages_cmd'";
+        $bash_cmd = "makepkg $pkg";
+        iex "bash -c '$bash_cmd'";
         Pop-Location
     }
     catch {
@@ -88,4 +94,4 @@ Function Make_MINGW_Package() {
     return "OK";
 }
 
-Export-ModuleMember 'Make_MINGW_Package'; 
+Export-ModuleMember 'MakePKG_MINGW'; 

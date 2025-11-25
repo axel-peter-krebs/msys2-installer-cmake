@@ -1,8 +1,8 @@
 Taken from https://gitforwindows.org/install-inside-msys2-proper.html
 
-Git for Windows being based on MSYS2, it’s possible to install the mingw-w64-git package into an existing MSYS2 installation. That means that if you are already using MSYS2 on your computer, you can use Git for Windows without running the full installer or using the portable version. There are some caveats for going this way, details below. Reading the whole guide before starting is recommended.
+Git for Windows being based on MSYS2, it's possible to install the mingw-w64-git package into an existing MSYS2 installation. That means that if you are already using MSYS2 on your computer, you can use Git for Windows without running the full installer or using the portable version. There are some caveats for going this way, details below. Reading the whole guide before starting is recommended.
 
-This guide assumes you are comfortable using the command line and you are willing to completely re-install your MSYS2 if something goes wrong. You can contact @Elieux for advice in the git-for-windows/git Gitter room or through the contact channels for MSYS2. Please don’t file issues with Git for Windows installed this way until you verify them in an official Git for Windows distribution.
+This guide assumes you are comfortable using the command line and you are willing to completely re-install your MSYS2 if something goes wrong. You can contact @Elieux for advice in the git-for-windows/git Gitter room or through the contact channels for MSYS2. Please donï¿½t file issues with Git for Windows installed this way until you verify them in an official Git for Windows distribution.
 
 The steps
 Here are the steps to install the 64-bit version of Git for Windows to be run in an MSYS2 terminal (msys2_shell.cmd):
@@ -33,7 +33,7 @@ pacman-key --lsign-key 3B6D86A1BA7701CD0F23AED888138B9E1A9F3986
 Then synchronize with new repositories with
 
 pacman -Syyuu
-This installs a new msys2-runtime and therefore will ask you to terminate all MSYS2 processes. Save what you need from other open MSYS2 shells and programs, exit them and confirm the Pacman prompt. Double-check Task Manager and kill pacman.exe if it’s still running after the window is closed. Start a new MSYS2 terminal.
+This installs a new msys2-runtime and therefore will ask you to terminate all MSYS2 processes. Save what you need from other open MSYS2 shells and programs, exit them and confirm the Pacman prompt. Double-check Task Manager and kill pacman.exe if itï¿½s still running after the window is closed. Start a new MSYS2 terminal.
 
 Then synchronize again to install the rest:
 
@@ -52,11 +52,11 @@ To integrate with the Windows Credential Manager, install the package mingw-w64-
 
 To be able to view the git man pages when invoking help with git help X or git X --help (in addition to man git-X), add the line export MSYS2_ENV_CONV_EXCL=MANPATH to your shell configuration, and set the man pages as default help format with git config --global help.format man (or append -m to the git help invocation).
 
-If you encounter error “error: wrong number of arguments, should be from 1 to 2” with git add -p, set add.interactive.useBuiltin to true in Git’s configuration.
+If you encounter error ï¿½error: wrong number of arguments, should be from 1 to 2ï¿½ with git add -p, set add.interactive.useBuiltin to true in Gitï¿½s configuration.
 
 If you encounter DLL errors (The code execution cannot proceed because libsomething.dll was not found.), this is most likely an incompatibility between the DLL versions from Git for Windows and upstream MSYS2. Usually this is caused by cURL, GnuTLS and OpenSSL. Replacing the packages with the ones from upstream seems to work best, but no guarantees for what that actually does with Git: pacman -S mingw64/mingw-w64-x86_64-curl mingw64/mingw-w64-x86_64-gnutls mingw64/mingw-w64-x86_64-openssl
 
-Git for Windows carries an msys2-runtime different from upstream MSYS2, see issue #284 for more details. You can run into some rare issues with programs other than Git due to this. It’s possible to keep the stock MSYS2 runtime by moving the msys repository above the git-for-windows repository in /etc/pacman.conf. There are known issues with Git in that case, although not common.
+Git for Windows carries an msys2-runtime different from upstream MSYS2, see issue #284 for more details. You can run into some rare issues with programs other than Git due to this. Itï¿½s possible to keep the stock MSYS2 runtime by moving the msys repository above the git-for-windows repository in /etc/pacman.conf. There are known issues with Git in that case, although not common.
 
 The mingw-w64-x86_64-git-extra package modifies the MSYS2 installation heavily (sometimes in ways that are tedious to undo). The package can be skipped if you want to keep your MSYS2 pristine. As of this writing, the package:
 

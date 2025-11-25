@@ -1,0 +1,19 @@
+---
+  version: 1.0
+
+  platform: mingw64
+
+  msys2-version: ">3.6.5"
+
+  steps:
+    - name: "#1"
+      description: "Add UCRT 64-bit toolchain, including GDB (GNU C(++) debugger."
+      packages:
+        - "base-devel"
+        - "mingw-w64-ucrt-x86_64-toolchain"
+
+    - name: '#2'
+      description: "Update MSYS2 packages database (sync)"
+      commands:
+        - "sh -c 'pacman -Suu --noconfirm'"
+

@@ -12,6 +12,10 @@ $YAML::Syck::ImplicitTyping = 1;
 
 # Install packages, files and more; the 'recipe' is in the YAML file, cmp. Ansible.
 
+# TODO: The successive steps contain file, command and package operations, which are executed in this order;
+# however, sometimes you want a package OP to be executed first!
+# Work-around: If package OP must be executed BEFORE file changes or commands, define a separate step.
+
 struct ( TODO => 
     {
         'name' => '$',
@@ -22,7 +26,7 @@ struct ( TODO =>
     }
 );
 
-my @todos = ();
+my @steps = ();
 
 my $yaml_file_path = $ARGV[0];
 my $msys2_install_root = $ARGV[1];
@@ -35,8 +39,9 @@ if($yaml_file_path eq "") {
     print "A path to a YAML file must be provided as the first argument!";
 }
 else {
-    print "->Will open YAML file: $yaml_file_path (source file path: $recipes_path)!\n";
-    print "->File changes will be relative to ROOT: $msys2_install_root!\n";
+    print "->Will open YAML file: $yaml_file_path (source file path: $recipes_path)!";
+    print "->Note: Eventual file changes will be made relative to the MSYS2 root in $msys2_install_root!\n";
+    chdir($recipes_path) or die "$!"; # we need to access files provided with the recipe
     open my $fh, '<', $yaml_file_path or die "Can't open YAML file: $yaml_file_path!";
     my $yaml = LoadFile($fh);
     my %yamlHash = %$yaml; #bless $yaml, "Hash"
@@ -50,61 +55,51 @@ else {
         my $val = $yamlHash{"$key"}; 
         if ( $key eq 'steps') {
             foreach my $step_hash ( @{ $val } ) { # 'val' must be an array, 'step' is a hash
-                foreach my $step_key (keys %{ $step_hash } ) {
-                    my $todo = TODO->new;
-                    my $step_detail_hash = %$step_hash{"$step_key"};
-                    foreach my $step_detail (keys %{ $step_detail_hash }) {
-                        if ( $step_detail eq "name") {
-                            my $step_name = %$step_detail_hash{'name'};
-                            $todo->name($step_name);
-                        }
-                        elsif ( $step_detail eq "description") {
-                            my $step_desc = %$step_detail_hash{'description'};
-                            $todo->description($step_desc);
-                        }
-                        elsif ( $step_detail eq "files") {
-                            my $file_ops = %$step_detail_hash{"files"};
-                            #foreach my $file_name_ops_hash ( @{ $file_ops } ) {
-                                #push @{ $TODOS{'files'} }, $file_name_ops_hash;
-                                #foreach my $file_name (keys %{ $file_name_ops_hash } ) {
-                                #    print "Found file: $file_name\n";
-                                #}
-                            #} TODO aufschlüsseln
-                            $todo->files($file_ops);
-                        }
-                        elsif (  $step_detail eq "packages" ) {
-                            my $package_ops = %$step_detail_hash{"packages"};
-                            #foreach my $package ( @{ $package_ops } ) {
-                                #push @{ $TODOS{'packages'} }, $package;
-                                #print "Package: $package\n";
-                            #}
-                            $todo->packages($package_ops);
-                        }
-                        elsif (  $step_detail eq "commands" ) {
-                            #print "Found commands ops!\n";
-                            my $command_ops = %$step_detail_hash{"commands"};
-                            #foreach my $command ( @{ $command_ops }){
-                                # push @{ $TODOS{'commands'} }, $command;
-                            #    print "Command: $command\n";
-                            #}
-                            $todo->commands($command_ops);
-                        }
-                        else {
-                            print "Unknown step detail encountered: $step_detail\n"
-                        }
-                    }  
-                    push @todos, $todo;  
+                #print "-> Adding step hash!\n";
+                my $todo = TODO->new;
+                foreach my $step_detail (keys %{ $step_hash } ) {
+                    #print "-> Step detail: $step_detail\n";
+                    if ( $step_detail eq "name") {
+                        my $step_name = %$step_hash{'name'};
+                        $todo->name($step_name);
+                    }
+                    elsif ( $step_detail eq "description") {
+                        my $step_desc = %$step_hash{'description'};
+                        $todo->description($step_desc);
+                    }
+                    elsif ( $step_detail eq "files") {
+                        my $file_ops = %$step_hash{"files"};
+                        $todo->files($file_ops);
+                    }
+                    elsif ( $step_detail eq "packages" ) {
+                        my $package_ops = %$step_hash{"packages"};
+                         $todo->packages($package_ops);
+                    }
+                    elsif (  $step_detail eq "commands" ) {
+                        #print "Found commands ops!\n";
+                        my $command_ops = %$step_hash{"commands"};
+                        #foreach my $command ( @{ $command_ops }){
+                            # push @{ $steps{'commands'} }, $command;
+                        #    print "Command: $command\n";
+                        #}
+                        $todo->commands($command_ops);
+                    }
+                    else {
+                        print "Unknown step detail encountered: $step_detail\n"
+                    } 
                 }
+                push @steps, $todo;
             }
         }
     }
 }
 
 # 'Dry-run' ..
-sub print_todos() {
-    my $nr_todos = scalar @todos;
-    print "### TODOs [$nr_todos] ###\n";
-    foreach my $todo ( @todos ) {
+sub print_steps() {
+    my $nr_steps = scalar @steps;
+    print "In directory: $recipes_path";
+    print "### steps [$nr_steps] ###\n";
+    foreach my $todo ( @steps ) {
         my $todo_name = $todo->name();
         my $todo_desc = $todo->description();
         print "# STEP: $todo_name\n";
@@ -126,10 +121,10 @@ sub print_todos() {
     }
 }
 
-&print_todos();
+&print_steps();
 
 sub execute_all() {
-    foreach my $todo (@todos) {
+    foreach my $todo (@steps) {
         my $files_list = $todo->files;
         foreach my $file_ops_hash ( @{ $files_list }) {
             my $result = &file_op($file_ops_hash);

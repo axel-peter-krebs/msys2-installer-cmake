@@ -1,0 +1,35 @@
+---
+  version: 1.0
+
+  platform: mingw64
+
+  msys2-version: ">3.6.5"
+
+  steps:
+    - name: "#1"
+      description: "Add required build-time dependencies for the LLVM compiler."
+      packages:
+        - "base-devel"
+        - "zlib-devel"
+        - "libzstd-devel"
+        - "ninja"
+        - "clang"
+        - "msys2-keyring"
+
+    - name: "#2"
+      description: "Import GPG signatures."
+      commands: 
+        - "sh -c 'pacman-key --recv-keys 44F2485E45D59042'"
+        - "sh -c 'pacman-key --add thieta.pgp'"
+        - "sh -c 'pacman-key --lsign-key 44F2485E45D59042'"
+        - "sh -c 'pacman -Syyuu --noconfirm'"
+
+    - name: '#3'
+      description: "Update MSYS2 packages database (sync)"
+      commands:
+        - "sh -c 'pacman -Suu --noconfirm'"
+    
+    - name: "#4"
+      description: "Compile the LLVM package."
+      commands:
+        - "echo TODO!!"

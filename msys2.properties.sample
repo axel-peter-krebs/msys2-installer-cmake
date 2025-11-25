@@ -5,6 +5,7 @@ msys2.install.dir="C:\msys64"
 msys2.user.dir="C:\Users\vagrant"
 #msys2.runtime.src.github.url="https://github.com/msys2/msys2-runtime.git" no, use exe installer
 msys2.download.url="https://repo.msys2.org/distrib/x86_64/msys2-x86_64-20250830.exe"
+msys2.keyring.url="https://github.com/msys2/MSYS2-keyring.git"
 msys2.packages.master.url="https://github.com/msys2/MSYS2-packages.git"
 msys2.mingw64.packages.master.url="https://github.com/msys2/MINGW-packages.git"
 msys2.mingw64.hdl.url="https://github.com/hdl/MINGW-packages.git"
