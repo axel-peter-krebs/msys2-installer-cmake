@@ -10,11 +10,18 @@ use File::Basename;
 
 $YAML::Syck::ImplicitTyping = 1;
 
-# Install packages, files and more; the 'recipe' is in the YAML file, cmp. Ansible.
+# The script must be run in the MSYS2 environment. It uses the GNU commands provided therein, 
+# that is 'sh', 'perl', 'awk', 'sed' a.s.o. For a sample invocation s. msys2-installer.ps1 
+# (Function 'Run_Install_Script').
+# Install packages, files and execute commands; the 'recipe' is in the YAML file, cmp. Ansible.
 
 # TODO: The successive steps contain file, command and package operations, which are executed in this order;
 # however, sometimes you want a package OP to be executed first!
 # Work-around: If package OP must be executed BEFORE file changes or commands, define a separate step.
+
+my $version = "1.0";
+my $arch = "mingw64";
+my $msys2_version = "3";
 
 struct ( TODO => 
     {
@@ -52,8 +59,17 @@ else {
     # Read the YAML 
     # The keys are pointers to a list of hashes
     for my $key ( keys %yamlHash ) {
-        my $val = $yamlHash{"$key"}; 
-        if ( $key eq 'steps') {
+        my $val = $yamlHash{"$key"};
+        if( $key eq 'version' ) {
+            $version = $key;
+        }
+        elsif ( $key eq 'msys2-version') {
+            $msys2_version = $key;
+        }
+        elsif ( $key eq 'platform' ) {
+            $arch = $key;
+        }
+        elsif ( $key eq 'steps') {
             foreach my $step_hash ( @{ $val } ) { # 'val' must be an array, 'step' is a hash
                 #print "-> Adding step hash!\n";
                 my $todo = TODO->new;
@@ -97,26 +113,28 @@ else {
 # 'Dry-run' ..
 sub print_steps() {
     my $nr_steps = scalar @steps;
-    print "In directory: $recipes_path";
-    print "### steps [$nr_steps] ###\n";
+    print "\nIn directory: $recipes_path";
+    print "\nUsing MSYS2 version: $msys2_version";
+    print "\nUsing MSYS2 architecture: $arch";
+    print "\n### steps [$nr_steps] ###";
     foreach my $todo ( @steps ) {
         my $todo_name = $todo->name();
         my $todo_desc = $todo->description();
-        print "# STEP: $todo_name\n";
-        print "\tDescription: $todo_desc\n";
+        print "\n# STEP: $todo_name";
+        print "\n\tDescription: $todo_desc";
         my $files_list = $todo->files();
         foreach my $file_op ( @{ $files_list }) {
             foreach my $file_name (keys %{ $file_op } ) {
-                print "\tFile-OP: $file_name\n";
+                print "\n\tFile-OP: $file_name";
             }
         }
         my $commands_list = $todo->commands();
         foreach my $command_op ( @{ $commands_list }) {
-            print "\tCommand-OP: $command_op\n";
+            print "\n\tCommand-OP: $command_op";
         }
         my $packages_list = $todo->packages();
         foreach my $pkg_string ( @{ $packages_list }) {
-            print "\tPackage-OP: $pkg_string\n";
+            print "\n\tPackage-OP: $pkg_string";
         } 
     }
 }

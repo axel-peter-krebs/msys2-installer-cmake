@@ -1,0 +1,19 @@
+---
+  version: 1.0
+
+  platform: ucrt64
+
+  msys2-version: ">3.6.5"
+
+  steps:
+    - name: "#1"
+      description: "Add required dependencies for XMake."
+      packages:
+        - "mingw-w64-x86_64-ncurses"
+        - "mingw-w64-x86_64-readline"
+        - "mingw-w64-x86_64-cc"
+
+    - name: "#2"
+      description: "Post-install chores."
+      commands:
+        - "echo TODO!!"

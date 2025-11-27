@@ -1,0 +1,27 @@
+---
+  version: 1.0
+
+  platform: ucrt64
+
+  msys2-version: ">3.6.5"
+
+  steps:
+    - name: "#1"
+      description: "Add required dependencies for CMake."
+      packages:
+        - "base-devel"
+        - "emacs"
+        - "jsoncpp-devel"
+        - "libarchive-devel"
+        - "libbz2-devel"
+        - "libcurl-devel"
+        - "libexpat-devel"
+        - "liblzma-devel"
+        - "librhash-devel"
+        - "libuv-devel"
+        - "ncurses-devel"
+
+    - name: "#2"
+      description: "Compile the LLVM package."
+      commands:
+        - "echo TODO!!"

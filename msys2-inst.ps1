@@ -28,9 +28,7 @@ $settings = @{
     'msys2.mingw64.packages.master.url' = "https://github.com/msys2/MINGW-packages.git"; 
     'msys2.mingw64.hdl.url' = ""; # MINGW-w32
     'msys2.keyring.url' = "https://github.com/msys2/MSYS2-keyring.git";
-    'msys2.user.dir' =  'qafila' <# a MSYS" 'registered' user that has local admissive rights to install packages, 
-        execute build tools (CMake, for example) a.m. (Perl); if a relative path is given, the user 'home' 
-        will be under /home of the MSYS2 installation. #>
+    'msys2.user.dir' =  'qafila'; # default user; s. folder 'qafila'
 };
 
 Function print_settings() {
@@ -94,7 +92,7 @@ if ($show_debug_information) {
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Set the path to the MSYS2 executables (GNU programs)
-Write-Host "Loading MSYS2 installer.."
+Write-Host "Loading MSYS2 installer (this may take a some time while synchronizing the database).."
 $sync_on_start = $False; # introduced this for lazy upgrade
 if ( $script:settings.'sync.on.start' -eq "True") {
     $sync_on_start = $True;
@@ -107,33 +105,22 @@ Import-Module "$Current_Script_loc\msys2-env.psm1" -ArgumentList @(
 
 $module_load_facts = Get_Module_Load_Facts;
 
-<#
-if($Env:HOME -ne $null) {
-    Write-Host "Environment was properly initialized.. Will lead you to Env:HOME directory now.";
-    Set-Location $Env:HOME;
-}
-else {
-    Write-Host "Env:HOME seems to be missing.. ";
-    Set-Location $Current_Script_loc
-}
-#>
-
 Function Enter_Msys2_Shell() {
     param (
-        [parameter(Position=0,Mandatory=$True)][String] $msys2_arch,
-        [parameter(Position=1,Mandatory=$False)][String] $user_home_dir
+        [parameter(Position=0,Mandatory=$True)][String] $msys2_arch
     )
-    $user_home_cygpath = cygpath -u $Current_Script_loc; # if '$user_home_dir' is null
-    if ($user_home_path -ne $null) {
-        $user_home_cygpath = cygpath -u $user_home_dir;
+    $user_home = $Current_Script_loc; # if '$Env:HOME' is null, set default
+    if ($Env:HOME -ne $null) {
+        Write-Host "Will use Env:HOME set to $Env:HOME."; # This is NOT the HOME path that bash will use!!!
+        $user_home = $Env:HOME;
     }
     $msys2_shell_cmd_path = $script:settings.'msys2.install.dir' + "\msys2_shell.cmd";
     $processOptions = @{
         FilePath = "$msys2_shell_cmd_path"
-        UseNewEnvironment = $true
-        ArgumentList = "-$msys2_arch -where $user_home_dir" # "-conemu -mingw32"
+        #UseNewEnvironment = $true
+        ArgumentList = "-$msys2_arch -where $user_home" # "-conemu -mingw32"
     }
-    $proc = Start-Process @processOptions -Wait -PassThru # -WorkingDirectory $user_home_dir 
+    $proc = Start-Process @processOptions # -Wait -PassThru # -WorkingDirectory $user_home_dir 
 }
 
 $required_packages_for_running_installer = @(
@@ -168,7 +155,7 @@ Function Run_Install_Script() {
                     #$queryRes = iex "perl -s $perl_install_script_loc $yaml_file_cygpath"; # arguments?
                     $perl_cmd = "perl -s $perl_install_script_cygpath $yaml_file_cygpath $msys2_install_cygpath";
                     __log_if_debug "Running Perl command: $perl_cmd";
-                    iex "bash -c '$perl_cmd'"; # execute Perl in bash!!!
+                    iex "sh -c '$perl_cmd'"; # execute Perl in bash!!!
                     Write-Host "Receipe successfully executed!";
                 }
             }
@@ -207,7 +194,7 @@ Function Start_Packing() {
         $mingw64_packages_master_src_dir = "$github_path\MINGW-packages";
     }
 
-    Import-Module "$Current_Script_loc\msys2-packer.psm1" -ArgumentList @(
+    Import-Module "$Current_Script_loc\msys2-pack.psm1" -ArgumentList @(
         $script:settings.'msys2.packages.master.url',
         $msys2_packages_master_src_dir,
         $script:settings.'msys2.mingw64.packages.master.url',
@@ -287,7 +274,7 @@ Function Loop_Menu() {
                 #$exitWhile = $True;
             }
             B {
-                Enter_Msys2_Shell "mingw64" "$Env:HOME";
+                Enter_Msys2_Shell "mingw64";
                 #$exitWhile = $True;
             }
             E {
@@ -364,12 +351,26 @@ if($module_load_facts.'msys2_clean' -eq $True) {
         }
     }
 
-        # Set the user Env:HOME here 
+    <#
+    if($Env:HOME -ne $null) {
+        Write-Host "Environment was properly initialized.. Will lead you to Env:HOME directory now.";
+        Set-Location $Env:HOME;
+    }
+    else {
+        Write-Host "Env:HOME seems to be missing.. ";
+        Set-Location $Current_Script_loc
+    }
+    #>
+
+    # Set the user Env:HOME here; check if overridden!
     $msys2_user_dir = $script:settings.'msys2.user.dir';
+    if ($msys2_user_dir -eq 'qafila') {
+        $msys2_user_dir = "$Current_Script_loc\$msys2_user_dir";
+    }
     $msys_user_home_path = Convert-Path $($msys2_user_dir)
     if ($msys_user_home_path -ne $null) { # user settings 
         #Write-Host "User HOME set to absolute path $user_home_path";
-        $Env:HOME = Convert-Path $msys_user_home_path;
+        $Env:HOME = $msys_user_home_path;
     }
     
     $missing_packages_merged = $script:missing_packer_dependencies + $script:missing_yaml_packages;

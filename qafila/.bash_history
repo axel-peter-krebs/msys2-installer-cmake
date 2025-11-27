@@ -68,3 +68,24 @@ exit
 gcc --version
 exit
 pwd
+exit
+whoami
+pwd
+bash
+pwd
+ls -la
+cat packages.txt 
+#rm packages.txt 
+pacman -Q > packages.txt
+cat packages.txt 
+exit
+git config
+git config --help
+exit
+pwd
+pwd
+pacman
+help
+which help
+clear
+which clear

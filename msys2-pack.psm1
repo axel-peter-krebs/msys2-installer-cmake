@@ -1,7 +1,13 @@
 # This scripts sets the parameters so build and install MSYS2 packages from source.
+# It is separated from msys2-env.psm1 bcs. its purpose is different: building MSYS2
+# as well as MINGW packages from source (with 'makepkg').
+# Besides, it requires the MSYS2 to be installed and set in PATH environment variable:
+# it uses 'sh' to execute commands bcs. it cannot be assumed that a Windows executable
+# exists for Unix command (like 'makepkg' for example). Cmp. 'Run_Install_Script' in 
+# 'msys2-insta.ps1'!
 param (
     #[parameter(Position=0,Mandatory=$True)][String] $MSYS2_Path, set in Env:MSYS2_HOME
-    #[parameter(Position=1,Mandatory=$False)][String] $MSYS2_User_Home,
+    #[parameter(Position=1,Mandatory=$False)][String] $MSYS2_User_Home, not needed
     [parameter(Position=1,Mandatory=$False)][String] $MSYS2_Packages_URL,
     [parameter(Position=2,Mandatory=$False)][String] $MSYS2_Packages_Dest,
     [parameter(Position=3,Mandatory=$False)][String] $MINGW64_Packages_URL,
@@ -54,9 +60,9 @@ Function MakePKG_MSYS2() {
         #iex "sh -c '. /etc/makepkg.conf'"; #| Write-Host
         #$print_srcinfo_cmd = "makepkg --printsrcinfo";
         #iex "sh -c '$print_srcinfo_cmd'";
-        $bash_cmd = "makepkg --packagelist";
+        #$bash_cmd = "makepkg --packagelist";
         #$bash_cmd = "makepkg --check $pkg"; no key verification! (TODO)
-        #$bash_cmd = "makepkg $pkg";
+        $bash_cmd = "makepkg";
         $result = iex "sh -c '$bash_cmd' 2>&1"; # This will source the bash scripts, e.g. set environments etc.
         Pop-Location
     }
@@ -74,18 +80,20 @@ Function MakePKG_MINGW() {
         [parameter(Position=0,Mandatory=$True)][String] $pkg_name
     )
     $mingw64_packages_dir = $script:load_facts.'mingw64_pkgs_git_repo_dir';
-    $pkgbuild_dir = "$mingw64_packages_dir\$pkg_name";
+    $mingw_w64_package_name = "mingw-w64-$pkg_name";
+    $pkgbuild_dir = "$mingw64_packages_dir\$mingw_w64_package_name";
     $pgkbuild_cygpath = cygpath -u $pkgbuild_dir;
     Write-Host "Building package in $pgkbuild_cygpath.."
     try {
         Push-Location $pkgbuild_dir; # now, current path for bash is this location
+        
         #iex "sh -c '. /etc/makepkg.conf'"; #| Write-Host
         #$print_srcinfo_cmd = "makepkg --printsrcinfo";
         #iex "sh -c '$print_srcinfo_cmd'";
         #$list_packages_cmd = "makepkg --packagelist";
         #iex "sh -c '$list_packages_cmd'";
-        $bash_cmd = "makepkg $pkg";
-        iex "bash -c '$bash_cmd'";
+        $bash_cmd = "makepkg-mingw";
+        iex "sh -c '$bash_cmd'";
         Pop-Location
     }
     catch {
