@@ -31,6 +31,8 @@ Function Get_Module_Load_Facts() {
 
 Export-ModuleMember 'Get_Module_Load_Facts'; # Print information about the MSYS2 installation 
 
+# TODO Function for pretty-print load facts
+
 # Test if $MSYS2_Path and $MSYS2_User exist.. 
 $MSYS2_path_exists = Test-Path $($MSYS2_Path);
 
@@ -124,7 +126,7 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
     #Write-Host "Pacman lock file exists: $pacman_lock";
 
     Function Msys_Sync_Packages() {
-        $updateRes = "";
+        $updateRes = "NOT-SYNCED";
         if($pacman_lock -eq $True) {
             Write-Host "Cannot synchronize database: pacman found locked! Unlock with 'msys_unlock' and try again."
         }
@@ -134,7 +136,7 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
             $script:load_facts.'msys2_packages' = $script:msys2Packages; 
             $script:load_facts.'msys2_clean' = $True; 
         }
-        return $script:load_facts;
+        return $updateRes;
     }
 
     if ( $pacman_lock -eq $True ) { # True = pacman locked
@@ -197,17 +199,18 @@ if($script:load_facts.'msys2_install_dir' -ne $null) {
 
     Function Msys_Info() {
         Write-Host "Local MSYS2 installation in '$Env:MSYS2_HOME' [$u_name_rv]";
-        Write-Host "Invoke the cmdlet 'get_module_load_facts' to see all configuration settings.";
-        Write-Host "[Also, MSYS2 installed tools are available, e.g. 'printenv', pacman -Q, bash etc.]"
+        Get_Module_Load_Facts | Write-Host; # intermediate for print facts function (TODO)
     }
 
     Function Msys_Help() {
         Write-Host "Available options are: ";
         Write-Host "`tType 'msys_info' to print some information about this MSYS2 installation.";
-        Write-Host "`tType 'msys_list_packages' to list all packages found installed.";
-        Write-Host "`tType 'msys_sync_packages' to synchronize the MSYS2 database ('clean').";
-        Write-Host "`tType 'msys_install_package [package_name]' to install a package (and its dependencies).";
+        Write-Host "`tType 'msys_list_packages' to list all packages found in MSYS2 installation.";
+        Write-Host "`tType 'msys_sync_packages' to manually synchronize the MSYS2 database ('clean').";
+        Write-Host "`tType 'msys_install_package [package_name]' to directly install a package (and its dependencies).";
         Write-Host "`tType 'msys_system_upgrade to upgrade MSYS2 (Core libraries and packages).";
+        $help_command = Read-Host -Prompt ">";
+        iex $help_command;
     }
 
     Export-ModuleMember 'Msys_Info'; # print information about this MSYS2 installation

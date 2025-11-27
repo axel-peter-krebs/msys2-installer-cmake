@@ -92,7 +92,7 @@ if ($show_debug_information) {
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Set the path to the MSYS2 executables (GNU programs)
-Write-Host "Loading MSYS2 installer (this may take a some time while synchronizing the database).."
+Write-Host "Loading MSYS2 installer (this may take some time while synchronizing the database).."
 $sync_on_start = $False; # introduced this for lazy upgrade
 if ( $script:settings.'sync.on.start' -eq "True") {
     $sync_on_start = $True;
@@ -109,9 +109,10 @@ Function Enter_Msys2_Shell() {
     param (
         [parameter(Position=0,Mandatory=$True)][String] $msys2_arch
     )
+    Write-Host "A bash-like MSYS2 program will be opened through 'msys2_shell.cmd' located at the MSYS2 root installation.";
     $user_home = $Current_Script_loc; # if '$Env:HOME' is null, set default
     if ($Env:HOME -ne $null) {
-        Write-Host "Will use Env:HOME set to $Env:HOME."; # This is NOT the HOME path that bash will use!!!
+        Write-Host "The environment used is set via Env:HOME to $Env:HOME."; # This is NOT the HOME path that bash will use!!!
         $user_home = $Env:HOME;
     }
     $msys2_shell_cmd_path = $script:settings.'msys2.install.dir' + "\msys2_shell.cmd";
@@ -253,7 +254,7 @@ Function Loop_Menu() {
     do {
         $prompt = "Please choose an activity:`n";
         $prompt += "`tType 'A' to get info about this MSYS2 installation.`n";
-        $prompt += "`tType 'B' to bash into the MSYS2 installation.`n";
+        $prompt += "`tType 'B' to bash into the MSYS2 installation with a predefined user account.`n";
         if ( $clean_start_required ) {
             $prompt += "`tType 'E' to reload the MSYS2 library in a clean way (and unlock DB if necessary).`n";
         }
